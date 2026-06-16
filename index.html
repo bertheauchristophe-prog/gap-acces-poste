@@ -853,21 +853,79 @@ function handleScan(){
   }
 }
 
-// ═══════════ OCR ═══════════
+// ═══════════ OCR GOOGLE VISION ═══════════
+const VISION_KEY = 'AIzaSyCoZUnrm9Vp9veRy9e_o8FIWfuaKXemdxM';
+
 function doOCR(){
-  const z=document.getElementById('ocr-z');
-  z.innerHTML='<div style="font-size:1.4rem">⏳</div><strong>Analyse OCR en cours…</strong>';
-  setTimeout(()=>{
-    const d=[{nom:'BERNARD',prenom:'Luc',societe:'SPIE Industrie',tel:'06 23 45 67 89',email:'l.bernard@spie.fr'},{nom:'ROUSSEAU',prenom:'Céline',societe:'Eiffage Énergie',tel:'07 34 56 78 90',email:'c.rousseau@eiffage.fr'}];
-    const r=d[Math.floor(Math.random()*d.length)];
-    document.getElementById('e-nom').value=r.nom;
-    document.getElementById('e-prenom').value=r.prenom;
-    document.getElementById('e-societe').value=r.societe;
-    document.getElementById('e-tel').value=r.tel;
-    document.getElementById('e-email').value=r.email;
-    z.innerHTML=`<div style="color:var(--vert);font-size:1.2rem">✅</div><strong>OCR réussi — données pré-remplies</strong>`;
-    toast('📸 Coordonnées extraites','ok');
-  },1400);
+  const fileInput = document.getElementById('ocr-f');
+  const file = fileInput.files[0];
+  if (!file) return;
+  const z = document.getElementById('ocr-z');
+  z.innerHTML = '<div style="font-size:1.4rem">⏳</div><strong>Lecture de la carte en cours…</strong><div class="muted">Google Vision OCR</div>';
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    // Extrait le base64 (sans le préfixe data:...)
+    const base64 = e.target.result.split(',')[1];
+    try {
+      const resp = await fetch(
+        'https://vision.googleapis.com/v1/images:annotate?key=' + VISION_KEY,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requests: [{
+              image: { content: base64 },
+              features: [{ type: 'TEXT_DETECTION', maxResults: 1 }]
+            }]
+          })
+        }
+      );
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message);
+      const texte = data.responses[0]?.fullTextAnnotation?.text || '';
+      if (!texte) { z.innerHTML='<div style="color:var(--accent2)">⚠️</div><strong>Aucun texte détecté</strong>'; return; }
+      parseOCR(texte, z);
+    } catch(err) {
+      z.innerHTML = '<div style="color:var(--accent2)">❌</div><strong>Erreur OCR : ' + err.message + '</strong>';
+      toast('Erreur OCR : ' + err.message, 'err');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function parseOCR(texte, z) {
+  // Email
+  const emailM = texte.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+  // Téléphone FR : 06, 07, 04, 03... formats variés
+  const telM = texte.match(/(?:(?:\+|00)33[\s.]?|0)[1-9](?:[\s.\-]?\d{2}){4}/);
+  // Lignes du texte
+  const lignes = texte.split('\n').map(l => l.trim()).filter(l => l.length > 1);
+
+  // Nom/Prénom : cherche une ligne en MAJUSCULES ou Titre
+  let nom = '', prenom = '', societe = '';
+  for (const l of lignes) {
+    if (emailM && l.includes(emailM[0])) continue;
+    if (telM && l.includes(telM[0].trim())) continue;
+    // Ligne tout en majuscules = nom de famille probable
+    if (/^[A-ZÉÈÊÀÂÙÛÎÏÔŒÆ\-\s]{2,}$/.test(l) && !nom) { nom = l.trim(); continue; }
+    // Ligne avec majuscule initiale = prénom ou société
+    if (/^[A-ZÉÈÊÀÂÙÛÎÏÔŒÆ][a-zéèêàâùûîïôœæ]/.test(l)) {
+      if (!prenom && nom) { prenom = l.split(' ')[0]; continue; }
+      if (!societe && l.length > 3) { societe = l; continue; }
+    }
+  }
+
+  // Remplit les champs
+  if (nom)    document.getElementById('e-nom').value = nom;
+  if (prenom) document.getElementById('e-prenom').value = prenom;
+  if (societe)document.getElementById('e-societe').value = societe;
+  if (telM)   document.getElementById('e-tel').value = telM[0].trim();
+  if (emailM) document.getElementById('e-email').value = emailM[0];
+
+  const nbChamps = [nom,prenom,societe,telM,emailM].filter(Boolean).length;
+  z.innerHTML = '<div style="color:var(--vert);font-size:1.2rem">✅</div><strong>OCR réussi — ' + nbChamps + ' champ(s) rempli(s)</strong><div class="muted" style="margin-top:4px;font-size:.75rem;max-height:60px;overflow:hidden">' + texte.slice(0,120) + '…</div>';
+  toast('📸 ' + nbChamps + ' coordonnée(s) extraite(s) automatiquement', 'ok');
 }
 
 // ═══════════ PARAMS ═══════════

@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAP – Gestion des Accès Poste</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bleu:#0A2E52;--bleu-med:#1A5276;--bleu-clair:#2E86C1;--accent:#F39C12;--accent2:#E74C3C;--vert:#1ABC9C;--bg:#F0F4F8;--blanc:#fff;--gris:#ECF0F1;--texte:#1C2833;--light:#5D6D7E;--border:#BDC3C7;--shadow:0 2px 12px rgba(10,46,82,.10);--r:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--texte);min-height:100vh}
+header{background:linear-gradient(135deg,var(--bleu),var(--bleu-med));color:#fff;display:flex;align-items:stretch;min-height:60px;box-shadow:0 3px 10px rgba(0,0,0,.25);position:sticky;top:0;z-index:100;flex-wrap:wrap}
+.hlogo{display:flex;align-items:center;gap:10px;padding:0 18px;border-right:1px solid rgba(255,255,255,.15);min-height:60px}
+.hlogo-icon{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.hlogo h1{font-size:.95rem;font-weight:700;line-height:1.2}.hlogo span{font-size:.68rem;opacity:.75}
+nav{display:flex;align-items:center;gap:2px;padding:4px 8px;flex:1;overflow-x:auto;min-height:60px}
+nav button{background:transparent;border:none;color:rgba(255,255,255,.8);padding:7px 11px;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:500;white-space:nowrap;transition:all .15s;font-family:inherit}
+nav button:hover{background:rgba(255,255,255,.1);color:#fff}
+nav button.active{background:rgba(255,255,255,.2);color:#fff}
+.hsync{display:flex;align-items:center;gap:6px;padding:0 14px;border-left:1px solid rgba(255,255,255,.15);font-size:.72rem;color:rgba(255,255,255,.75);white-space:nowrap;min-height:60px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--vert);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.page{display:none;padding:16px;max-width:1100px;margin:0 auto}.page.active{display:block}
+.card{background:#fff;border-radius:var(--r);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+.card-title{font-size:.82rem;font-weight:700;color:var(--bleu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:#fff;border-radius:var(--r);padding:16px;box-shadow:var(--shadow);border-left:4px solid var(--bleu-clair)}
+.kpi.warn{border-left-color:var(--accent)}.kpi.danger{border-left-color:var(--accent2)}.kpi.ok{border-left-color:var(--vert)}
+.kpi-val{font-size:1.9rem;font-weight:800;color:var(--bleu);line-height:1}
+.kpi.warn .kpi-val{color:var(--accent)}.kpi.danger .kpi-val{color:var(--accent2)}.kpi.ok .kpi-val{color:var(--vert)}
+.kpi-label{font-size:.72rem;color:var(--light);font-weight:500;margin-top:3px}
+.tw{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+thead tr{background:var(--bleu);color:#fff}
+thead th{padding:9px 11px;text-align:left;font-weight:600;font-size:.75rem;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--gris);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#EBF5FB}
+tbody td{padding:8px 11px;vertical-align:middle}
+.empty-row td{text-align:center;color:var(--light);padding:24px;font-style:italic}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:600;white-space:nowrap}
+.b-sorti{background:#FDEBD0;color:#CA6F1E}.b-dispo{background:#D5F5E3;color:#1E8449}
+.b-alerte{background:#FADBD8;color:#C0392B}.b-cle{background:#D6EAF8;color:#1A5276}.b-badge{background:#E8DAEF;color:#6C3483}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font-size:.72rem;font-weight:600;color:var(--light);text-transform:uppercase;letter-spacing:.3px}
+.f input,.f select,.f textarea{border:1.5px solid var(--border);border-radius:7px;padding:8px 10px;font-size:.85rem;color:var(--texte);background:#fff;transition:border-color .15s;font-family:inherit}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--bleu-clair);box-shadow:0 0 0 3px rgba(46,134,193,.12)}
+.f textarea{resize:vertical;min-height:65px}
+.btn{padding:8px 16px;border-radius:7px;border:none;cursor:pointer;font-size:.82rem;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:6px;font-family:inherit;text-decoration:none}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.bp{background:var(--bleu-clair);color:#fff}.bp:hover{background:var(--bleu-med)}
+.bs{background:var(--vert);color:#fff}.bs:hover{background:#17A589}
+.bw{background:var(--accent);color:#fff}.bw:hover{background:#D68910}
+.bd{background:var(--accent2);color:#fff}.bd:hover{background:#CB4335}
+.bg{background:transparent;color:var(--bleu-clair);border:1.5px solid var(--bleu-clair)}.bg:hover{background:#EBF5FB}
+.bsm{padding:4px 9px;font-size:.73rem;border-radius:5px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.al{padding:11px 14px;border-radius:8px;margin-bottom:12px;font-size:.82rem;display:flex;align-items:flex-start;gap:9px;line-height:1.5}
+.al-warn{background:#FEF9E7;border-left:4px solid var(--accent);color:#7D6608}
+.al-info{background:#EBF5FB;border-left:4px solid var(--bleu-clair);color:#1A5276}
+.al-ok{background:#D5F5E3;border-left:4px solid var(--vert);color:#1E8449}
+.al-err{background:#FADBD8;border-left:4px solid var(--accent2);color:#922B21}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:var(--r);padding:22px;max-width:500px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto}
+.modal-title{font-size:.95rem;font-weight:700;color:var(--bleu);margin-bottom:16px}
+.modal-close{float:right;background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--light)}
+.scan-zone{border:3px dashed var(--bleu-clair);border-radius:var(--r);padding:24px;text-align:center;color:var(--light);background:#EBF5FB;cursor:pointer;transition:all .15s}
+.scan-zone:hover{background:#D6EAF8;border-color:var(--bleu-med)}
+.scan-icon{font-size:2.5rem;margin-bottom:8px}
+.qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.qr-item{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px;border:1px solid var(--border);border-radius:8px;background:#fff;text-align:center;cursor:pointer;transition:box-shadow .15s}
+.qr-item:hover{box-shadow:var(--shadow)}
+.qr-num{font-size:.82rem;font-weight:700;color:var(--bleu)}.qr-type{font-size:.68rem;color:var(--light)}
+.sbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.sbar input{flex:1;min-width:160px;padding:7px 11px;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;font-family:inherit}
+.sbar input:focus{outline:none;border-color:var(--bleu-clair)}
+.sbar select{padding:7px 9px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:.82rem}
+.srow{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--gris);gap:14px}
+.srow:last-child{border-bottom:none}
+.slabel{font-size:.85rem;font-weight:600;color:var(--texte)}.sdesc{font-size:.73rem;color:var(--light);margin-top:2px}
+input.ni{width:76px;text-align:center;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:.85rem}
+input.ti{padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:.85rem;width:220px}
+.sep{border:none;border-top:1px solid var(--gris);margin:14px 0}
+.muted{color:var(--light);font-size:.78rem}
+.fb{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.abtn{display:flex;gap:5px;flex-wrap:wrap}
+video{border-radius:8px}
+/* AUTOCOMPLETE */
+.ac-wrap{position:relative}
+.ac-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--bleu-clair);border-top:none;border-radius:0 0 8px 8px;z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.ac-item{padding:9px 12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--gris);transition:background .1s}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.selected{background:#EBF5FB}
+.ac-id{font-weight:700;color:var(--bleu);min-width:80px}
+.ac-desc{color:var(--light);font-size:.78rem;flex:1}
+.ac-st{font-size:.72rem;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.ac-st-dispo{background:#D5F5E3;color:#1E8449}.ac-st-sorti{background:#FDEBD0;color:#CA6F1E}
+.ac-empty{padding:10px 12px;color:var(--light);font-size:.82rem;font-style:italic}
+/* OCR / IA */
+.ocr-zone{border:2px dashed var(--border);border-radius:8px;padding:18px;text-align:center;cursor:pointer;background:var(--gris);transition:all .15s;margin-bottom:12px}
+.ocr-zone:hover{background:#EBF5FB;border-color:var(--bleu-clair)}
+.ocr-zone.loading{border-color:var(--bleu-clair);background:#EBF5FB;cursor:default}
+.ocr-zone.success{border-color:var(--vert);background:#D5F5E3;cursor:pointer}
+.ocr-zone.error{border-color:var(--accent2);background:#FADBD8;cursor:pointer}
+/* AGENT IA */
+.agent-box{background:linear-gradient(135deg,#0A2E52,#1A5276);border-radius:var(--r);padding:18px;margin-bottom:16px;color:#fff}
+.agent-title{font-size:.9rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.agent-input-row{display:flex;gap:8px;align-items:flex-end}
+.agent-input{flex:1;padding:10px 14px;border-radius:8px;border:none;font-size:.88rem;font-family:inherit;background:rgba(255,255,255,.15);color:#fff;outline:none;backdrop-filter:blur(4px)}
+.agent-input::placeholder{color:rgba(255,255,255,.55)}
+.agent-input:focus{background:rgba(255,255,255,.22)}
+.agent-btn{padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;white-space:nowrap;transition:background .15s}
+.agent-btn:hover{background:#D68910}
+.agent-btn:disabled{opacity:.5;cursor:not-allowed}
+.agent-response{margin-top:12px;background:rgba(255,255,255,.1);border-radius:8px;padding:12px;font-size:.84rem;line-height:1.6;min-height:40px;display:none}
+.agent-response.show{display:block}
+.agent-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:20px;font-size:.73rem;cursor:pointer;transition:background .15s}
+.chip:hover{background:rgba(255,255,255,.25)}
+.typing{display:inline-flex;gap:4px;align-items:center}
+.typing span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.7);animation:typing 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+@keyframes typing{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+#toast{position:fixed;bottom:20px;right:20px;z-index:999;background:var(--bleu);color:#fff;padding:11px 18px;border-radius:8px;font-size:.83rem;box-shadow:0 4px 16px rgba(0,0,0,.25);transform:translateY(80px);opacity:0;transition:all .3s;max-width:300px;line-height:1.4}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.tok{background:var(--vert)}#toast.twarn{background:var(--accent)}#toast.terr{background:var(--accent2)}
+@media(max-width:600px){
+  .hlogo h1{font-size:.85rem}.hlogo span{display:none}
+  nav button{padding:6px 9px;font-size:.72rem}
+  .page{padding:10px}.fg{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr 1fr}
+  .agent-input-row{flex-direction:column}
+}
+@media print{header,nav,.btn,.al,.sbar,#toast,.agent-box{display:none!important}.qr-grid{grid-template-columns:repeat(4,1fr)!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="hlogo"><div class="hlogo-icon">🔑</div><div><h1>GAP</h1><span>Gestion des Accès Poste</span></div></div>
+  <nav>
+    <button onclick="go(event,'dashboard')" class="active">📊 Tableau de bord</button>
+    <button onclick="go(event,'emprunter')">📤 Emprunter</button>
+    <button onclick="go(event,'retour')">📥 Retour</button>
+    <button onclick="go(event,'scanner')">📷 Scanner</button>
+    <button onclick="go(event,'inventaire')">🗂️ Inventaire</button>
+    <button onclick="go(event,'qrcodes')">🔲 QR Codes</button>
+    <button onclick="go(event,'historique')">📋 Historique</button>
+    <button onclick="go(event,'alertes')">⚠️ Alertes</button>
+    <button onclick="go(event,'params')">⚙️ Paramètres</button>
+  </nav>
+  <div class="hsync"><div class="dot"></div><span id="sync-txt">Local</span></div>
+</header>
+<div id="toast"></div>
+
+<!-- MODALS -->
+<div class="modal-bg" id="m-retour"><div class="modal"><button class="modal-close" onclick="cm('m-retour')">✕</button><div class="modal-title">📥 Confirmer le retour</div><div id="m-retour-c"></div></div></div>
+<div class="modal-bg" id="m-add">
+  <div class="modal"><button class="modal-close" onclick="cm('m-add')">✕</button><div class="modal-title">➕ Ajouter une clé / un badge</div>
+  <div class="fg">
+    <div class="f"><label>Numéro *</label><input id="ni-num" placeholder="CLE-001 ou BAD-001"></div>
+    <div class="f"><label>Type *</label><select id="ni-type"><option value="clé">🔑 Clé</option><option value="badge">🪪 Badge</option></select></div>
+    <div class="f" style="grid-column:1/-1"><label>Description</label><input id="ni-desc" placeholder="Ex: Clé bâtiment B, portail nord..."></div>
+  </div>
+  <div class="btn-row"><button class="btn bs" onclick="doAddItem()">✅ Ajouter</button><button class="btn bg" onclick="cm('m-add')">Annuler</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="m-qr"><div class="modal" style="text-align:center"><button class="modal-close" onclick="cm('m-qr')">✕</button><div class="modal-title" id="m-qr-title">QR Code</div><div id="m-qr-c" style="display:inline-block;margin:10px auto"></div><div class="muted" id="m-qr-desc" style="margin-top:8px"></div><div class="btn-row" style="justify-content:center;margin-top:14px"><button class="btn bg" onclick="window.print()">🖨️ Imprimer</button></div></div></div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="fb" style="margin-bottom:14px"><div><h2 style="font-size:1.2rem;color:var(--bleu);font-weight:800">Tableau de bord</h2><div class="muted" id="d-date"></div></div><button class="btn bp" onclick="loadDash()">🔄 Actualiser</button></div>
+  <div class="kpi-grid" id="kpis"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="card"><div class="card-title">📤 Actuellement sortis</div><div class="tw"><table><thead><tr><th>N°</th><th>Type</th><th>Emprunteur</th><th>Depuis</th><th>Durée</th></tr></thead><tbody id="tb-sortis"></tbody></table></div></div>
+    <div class="card"><div class="card-title">⚠️ Alertes en cours</div><div id="d-alertes"></div></div>
+  </div>
+  <div class="card" style="margin-top:0"><div class="card-title">📋 Dernières opérations</div><div class="tw"><table><thead><tr><th>Date/Heure</th><th>Action</th><th>N°</th><th>Type</th><th>Emprunteur</th><th>Société</th></tr></thead><tbody id="tb-recents"></tbody></table></div></div>
+</div>
+
+<!-- EMPRUNTER -->
+<div class="page" id="page-emprunter">
+  <h2 style="font-size:1.2rem;color:var(--bleu);font-weight:800;margin-bottom:14px">📤 Enregistrer un emprunt</h2>
+
+  <!-- AGENT IA -->
+  <div class="agent-box">
+    <div class="agent-title">🤖 Assistant IA — Saisie rapide en langage naturel</div>
+    <div class="muted" style="color:rgba(255,255,255,.65);margin-bottom:10px;font-size:.78rem">Décrivez l'emprunt en français, l'IA remplit le formulaire automatiquement</div>
+    <div class="agent-chips">
+      <div class="chip" onclick="setPrompt('Emprunt clé CLE-001 pour Jean Dupont d\'Enedis, mobile 06 12 34 56 78, jean.dupont@enedis.fr')">💬 Exemple emprunt clé</div>
+      <div class="chip" onclick="setPrompt('Badge BAD-002 emprunté par Marie Martin de SPIE, 07 98 76 54 32, m.martin@spie.fr, pour visite de site')">💬 Exemple emprunt badge</div>
+      <div class="chip" onclick="setPrompt('Pierre Bernard, technicien chez ABB, tél 06 11 22 33 44, p.bernard@abb.com prend la clé 003')">💬 Exemple format libre</div>
+    </div>
+    <div class="agent-input-row" style="margin-top:10px">
+      <input class="agent-input" id="agent-in" placeholder="Ex: Jean Dupont d'Enedis prend la clé CLE-001, mobile 06 12 34 56 78..." onkeydown="if(event.key==='Enter')agentSaisie()">
+      <button class="agent-btn" id="agent-btn" onclick="agentSaisie()">✨ Remplir</button>
+    </div>
+    <div class="agent-response" id="agent-resp"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔑 Identifiant clé / badge</div>
+    <div class="fg">
+      <div class="f ac-wrap"><label>Numéro *</label><input id="e-num" placeholder="CLE-042 ou BAD-007" oninput="acShow('e-num','e-ac',checkItem)" onfocus="acShow('e-num','e-ac',checkItem)" autocomplete="off"><div id="e-ac" class="ac-list" style="display:none"></div></div>
+      <div class="f"><label>Type</label><select id="e-type"><option value="clé">🔑 Clé</option><option value="badge">🪪 Badge</option></select></div>
+    </div>
+    <div id="e-status" style="margin-top:10px"></div>
+    <hr class="sep">
+    <div style="text-align:center"><button class="btn bg" onclick="tog('e-scan')">📷 Scanner un QR code</button></div>
+    <div id="e-scan" style="display:none;margin-top:12px">
+      <div class="scan-zone" onclick="startCam('e-vid','e-num',checkItem)"><div class="scan-icon">📷</div><p><strong>Appuyer pour activer la caméra</strong></p><p class="muted">Pointez le QR code</p></div>
+      <video id="e-vid" style="display:none;width:100%;margin-top:8px" playsinline></video>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">👤 Coordonnées emprunteur</div>
+    <!-- OCR IA -->
+    <div class="ocr-zone" id="ocr-z" onclick="document.getElementById('ocr-f').click()">
+      <div style="font-size:1.6rem;margin-bottom:5px">📸</div>
+      <strong>Photo carte de visite — OCR par IA Claude</strong>
+      <div class="muted" id="ocr-sub">Photographiez la carte · l'IA extrait automatiquement toutes les coordonnées</div>
+      <input type="file" id="ocr-f" accept="image/*" capture="environment" style="display:none" onchange="doOCR()">
+    </div>
+    <div class="fg">
+      <div class="f"><label>Nom *</label><input id="e-nom" placeholder="DUPONT"></div>
+      <div class="f"><label>Prénom *</label><input id="e-prenom" placeholder="Jean"></div>
+      <div class="f"><label>Société</label><input id="e-societe" placeholder="Entreprise ACME"></div>
+      <div class="f"><label>Téléphone</label><input type="tel" id="e-tel" placeholder="06 12 34 56 78"></div>
+      <div class="f" style="grid-column:1/-1"><label>Email *</label><input type="email" id="e-email" placeholder="jean.dupont@societe.fr"></div>
+    </div>
+    <hr class="sep">
+    <div class="f"><label>Commentaire / motif</label><textarea id="e-comment" placeholder="Raison de l'emprunt, zone concernée..."></textarea></div>
+    <div class="btn-row"><button class="btn bs" onclick="doEmprunt()">✅ Valider l'emprunt</button><button class="btn bg" onclick="resetE()">🔄 Réinitialiser</button></div>
+  </div>
+</div>
+
+<!-- RETOUR -->
+<div class="page" id="page-retour">
+  <h2 style="font-size:1.2rem;color:var(--bleu);font-weight:800;margin-bottom:14px">📥 Enregistrer un retour</h2>
+  <div class="card">
+    <div class="card-title">🔍 Identifier la clé / le badge</div>
+    <div class="fg">
+      <div class="f ac-wrap"><label>Numéro *</label><input id="r-num" placeholder="CLE-042 ou BAD-007" oninput="acShow('r-num','r-ac',checkRetour)" onfocus="acShow('r-num','r-ac',checkRetour)" autocomplete="off"><div id="r-ac" class="ac-list" style="display:none"></div></div>
+    </div>
+    <div style="text-align:center;margin:12px 0"><button class="btn bg" onclick="tog('r-scan')">📷 Scanner un QR code</button></div>
+    <div id="r-scan" style="display:none">
+      <div class="scan-zone" onclick="startCam('r-vid','r-num',checkRetour)"><div class="scan-icon">📷</div><p><strong>Appuyer pour activer la caméra</strong></p><p class="muted">Pointez le QR code</p></div>
+      <video id="r-vid" style="display:none;width:100%;margin-top:8px" playsinline></video>
+    </div>
+    <div id="r-result" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- SCANNER -->
+<div class="page" id="page-scanner">
+  <h2 style="font-size:1.2rem;color:var(--bleu);font-weight:800;margin-bottom:14px">📷 Scanner QR Code</h2>
+  <div class="card">
+    <div class="card-title">📷 Scanner pour identifier</div>
+    <div class="al al-info">ℹ️ Scannez le QR code d'une clé ou d'un badge pour voir son statut et agir.</div>
+    <div class="scan-zone" onclick="startCam('s-vid',null,handleScan)"><div class="scan-icon">📷</div><p><strong>Appuyer pour activer la caméra</strong></p><p class="muted">Identifie et propose l'action correspondante</p></div>
+    <video id="s-vid" style="display:none;width:100%;margin-top:10px" playsinline></video>
+    <div id="s-result" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- INVENTAIRE -->
+<div class="page" id="page-inventaire">
+  <h2 style="font-size:1.2rem;color:var(--bleu);font-weight:800;margin-bottom:14px">🗂️ Inventaire complet</h2>
+  <div class="card">
+    <div class="fb" style="margin-bottom:12px"><div class="card-title" style="margin:0">🔑 Clés & Badges</div><button class="btn bp bsm" onclick="document.getElementById('m-add').classList.add('open')">➕ Ajouter</button></div>
+    <div class="sbar">
+      <input id="inv-s" placeholder="Rechercher..." oninput="renderInv()">
+      <select id="inv-st" onchange="renderInv()"><option value="">Tous statuts</option><option value="disponible">Disponible</option><option value="sorti">Sorti</option></select>
+      <select id="inv-ty" onchange="renderInv()"><option value="">Tous types</option><option value="clé">Clés</option><option value="badge">Badges</option></select>
+    </div>
+    <div class="tw"><table><thead><tr><th>Numéro</th><th>Type</th><th>Description</th><th>Statut</th><th>Emprunteur</th><th>Depuis</th><th>Actions</th></tr></thead><tbody id="tb-inv"></tbody></table></div>
+  </div>
+</div>
+
+<!-- QR CODES -->
+<div class="page" id="page-qrcodes">
+  <h2 style="font-size:1.2rem;color:var(--bleu);font-weight:800;margin-bottom:14px">🔲 QR Codes</h2>
+  <div class="card">
+    <div class="card-title">🔲 Générer et imprimer</div>
+    <div class="al al-info">ℹ️ Cliquez sur un QR code pour l'agrandir et l'imprimer.</div>
+    <div class="btn-row" style="margin-bottom:14px"><button class="btn bp" onclick="renderQR()">🔲 Générer tous les QR</button><button class="btn bg" onclick="window.print()">🖨️ Imprimer tout</button></div>
+    <div class="qr-grid" id="qr-grid"></div>
+  </div>
+</div>
+
+<!-- HISTORIQUE -->
+<div class="page" id="page-historique">
+  <h2 style="font-size:1.2rem;color:var(--bleu);font-weight:800;margin-bottom:14px">📋 Historique complet</h2>
+  <div class="card">
+    <div class="sbar">
+      <input id="h-s" placeholder="Rechercher..." oninput="renderHist()">
+      <select id="h-f" onchange="renderHist()"><option value="">Toutes actions</option><option value="EMPRUNT">Emprunts</option><option value="RETOUR">Retours</option></select>
+    </div>
+    <div class="tw"><table><thead><tr><th>Date/Heure</th><th>Action</th><th>N°</th><th>Type</th><th>Nom</th><th>Prénom</th><th>Société</th><th>Tél.</th><th>Email</th><th>Commentaire</th></tr></thead><tbody id="tb-hist"></tbody></table></div>
+    <div class="btn-row" style="margin-top:12px"><button class="btn bg" onclick="expCSV()">⬇️ Exporter CSV</button></div>
+  </div>
+</div>
+
+<!-- ALERTES -->
+<div class="page" id="page-alertes">
+  <h2 style="font-size:1.2rem;color:var(--bleu);font-weight:800;margin-bottom:14px">⚠️ Alertes & Relances</h2>
+  <div class="card"><div class="card-title">⏰ Emprunts dépassant le délai</div><div id="al-list"></div></div>
+  <div class="card"><div class="card-title">📧 Aperçu mails de rappel</div><div class="al al-info">ℹ️ Aperçu du mail envoyé à chaque emprunteur en retard.</div><button class="btn bw" onclick="previewMails()">📧 Voir les mails de rappel</button><div id="mail-prev"></div></div>
+</div>
+
+<!-- PARAMÈTRES -->
+<div class="page" id="page-params">
+  <h2 style="font-size:1.2rem;color:var(--bleu);font-weight:800;margin-bottom:14px">⚙️ Paramètres</h2>
+  <div class="card"><div class="card-title">⏰ Délais de relance</div>
+    <div class="srow"><div><div class="slabel">Délai avant première relance</div><div class="sdesc">Jours avant le premier mail de rappel</div></div><div><input type="number" class="ni" id="p-delai" min="1" max="365" value="30"> jours</div></div>
+    <div class="srow"><div><div class="slabel">Fréquence de relance</div><div class="sdesc">Intervalle entre deux rappels</div></div><div><input type="number" class="ni" id="p-freq" min="1" max="90" value="30"> jours</div></div>
+  </div>
+  <div class="card"><div class="card-title">🏢 Informations du site</div>
+    <div class="fg">
+      <div class="f"><label>Nom du poste / site</label><input type="text" class="ti" id="p-site" value="Poste RTE Bourbonnais"></div>
+      <div class="f"><label>Email de contact</label><input type="email" class="ti" id="p-email" placeholder="acces.poste@rte-france.com"></div>
+    </div>
+  </div>
+  <div class="card"><div class="card-title">💾 Sauvegarde</div>
+    <div class="srow"><div><div class="slabel">Exporter toutes les données</div><div class="sdesc">Sauvegarde complète JSON</div></div><button class="btn bg bsm" onclick="expJSON()">⬇️ Exporter JSON</button></div>
+    <div class="srow"><div><div class="slabel">Importer des données</div><div class="sdesc">Restaurer une sauvegarde JSON</div></div><label class="btn bg bsm" style="cursor:pointer">⬆️ Importer JSON<input type="file" accept=".json" style="display:none" onchange="impJSON(this)"></label></div>
+    <div class="srow"><div><div class="slabel" style="color:var(--accent2)">Réinitialiser</div><div class="sdesc">Efface toutes les données locales</div></div><button class="btn bd bsm" onclick="resetAll()">🗑️ Réinitialiser</button></div>
+  </div>
+  <div class="btn-row"><button class="btn bs" onclick="saveParams()">💾 Sauvegarder les paramètres</button></div>
+  <div class="card" style="margin-top:14px"><div class="card-title">ℹ️ À propos</div><p class="muted">GAP v3.0 — Agent IA Claude + Base de données Supabase (multi-appareils temps réel). ✅ Données partagées entre tous les appareils.</p></div>
+</div>
+
+<script>
+// ═══ SUPABASE CONFIG ═══
+const SB_URL = 'https://haqqyrycdmmusyxnsiqw.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhcXF5cnljZG1tdXN5eG5zaXF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjU2OTcsImV4cCI6MjA5NzkwMTY5N30.RC9lAe9RCmIqifLcpuH9qzi8BBH5cbxvLTW7_QDpVh8';
+
+async function sbFetch(table, method='GET', body=null, params='') {
+  // Ajouter la clé API directement dans l'URL (plus fiable sur mobile)
+  const sep = params.includes('?') ? '&' : '?';
+  const url = SB_URL + '/rest/v1/' + table + params + sep + 'apikey=' + SB_KEY;
+  const opts = {
+    method,
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method==='POST' ? 'return=representation' : (method==='PATCH' ? 'return=representation' : '')
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    let errMsg = res.statusText;
+    try { const e = await res.json(); errMsg = e.message || e.hint || errMsg; } catch {}
+    throw new Error(errMsg);
+  }
+  if (method === 'DELETE') return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+// ═══ STATE (cache local) ═══
+let DB={items:[],emprunts:[],hist:[],params:{delai:30,freq:30,site:'Poste RTE Bourbonnais',email:''}};
+
+// Sauvegarde locale en fallback
+function saveLocal(){try{localStorage.setItem('gap_v2',JSON.stringify(DB));}catch(e){}}
+
+async function load(){
+  document.getElementById('sync-txt').textContent = 'Chargement…';
+  try {
+    console.log('Connexion Supabase...');
+    const [items, emprunts, hist, params] = await Promise.all([
+      sbFetch('items','GET',null,'?order=id'),
+      sbFetch('emprunts','GET',null,'?order=date_emprunt'),
+      sbFetch('historique','GET',null,'?order=created_at.desc&limit=200'),
+      sbFetch('parametres','GET',null,'?select=cle,valeur')
+    ]);
+    console.log('Supabase OK - items:', (items||[]).length, 'emprunts:', (emprunts||[]).length);
+    DB.items    = items    || [];
+    DB.emprunts = emprunts || [];
+    DB.hist     = (hist||[]).map(h=>({date:h.created_at,action:h.action,itemId:h.item_id,type:h.item_type,nom:h.nom,prenom:h.prenom,societe:h.societe,tel:h.telephone,email:h.email,comment:h.commentaire}));
+    // Params
+    const p = {};
+    (params||[]).forEach(r => p[r.cle] = r.valeur);
+    if (p.delai_relance) DB.params.delai = parseInt(p.delai_relance);
+    if (p.freq_relance)  DB.params.freq  = parseInt(p.freq_relance);
+    if (p.nom_site)      DB.params.site  = p.nom_site;
+    if (p.email_from)    DB.params.email = p.email_from;
+    document.getElementById('conn-banner') && (document.getElementById('conn-banner').style.display='none');
+    document.getElementById('sync-txt').textContent = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    saveLocal();
+    if (!DB.items.length) await initDemoSupabase();
+  } catch(e) {
+    console.warn('Supabase erreur:', e.message);
+    showBanner('⚠️ Mode hors ligne — ' + e.message);
+    loadLocal();
+  }
+  applyParams();
+}
+
+function loadLocal(){
+  try{const d=localStorage.getItem('gap_v2');if(d){const p=JSON.parse(d);DB={...DB,...p};}}catch(e){}
+  if(!DB.items.length) demo();
+}
+
+function showBanner(msg){
+  let b=document.getElementById('conn-banner');
+  if(!b){b=document.createElement('div');b.id='conn-banner';b.style.cssText='background:#FADBD8;color:#922B21;padding:10px 20px;text-align:center;font-size:.84rem;font-weight:600;';document.body.insertBefore(b,document.body.firstChild);}
+  b.textContent=msg;b.style.display='block';
+}
+
+async function save(action, data) {
+  saveLocal();
+  // Supabase : les écritures sont faites directement dans chaque fonction
+}
+
+async function initDemoSupabase(){
+  const items=[
+    {id:'CLE-001',type:'clé',description:'Portail principal',statut:'disponible'},
+    {id:'CLE-002',type:'clé',description:'Bâtiment B',statut:'disponible'},
+    {id:'CLE-003',type:'clé',description:'Salle de commande',statut:'disponible'},
+    {id:'CLE-004',type:'clé',description:'Armoire électrique N1',statut:'disponible'},
+    {id:'BAD-001',type:'badge',description:'Accès général',statut:'disponible'},
+    {id:'BAD-002',type:'badge',description:'Badge visiteur',statut:'disponible'},
+    {id:'BAD-003',type:'badge',description:'Badge prestataire',statut:'disponible'},
+  ];
+  try {
+    // Insérer un par un pour éviter les conflits
+    for (const item of items) {
+      await sbFetch('items','POST',item,'?on_conflict=id');
+    }
+    await load();
+  } catch(e) { console.warn('Init demo:', e.message); demo(); }
+}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
+function jdiff(d){return Math.floor((Date.now()-new Date(d))/86400000);}
+function fd(d){return new Date(d).toLocaleDateString('fr-FR');}
+function fdt(d){return new Date(d).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+
+// ═══ DEMO (fallback local) ═══
+function demo(){
+  DB.items=[
+    {id:'CLE-001',type:'clé',desc:'Portail principal',statut:'sorti'},
+    {id:'CLE-002',type:'clé',desc:'Bâtiment B',statut:'disponible'},
+    {id:'CLE-003',type:'clé',desc:'Salle de commande',statut:'disponible'},
+    {id:'CLE-004',type:'clé',desc:'Armoire électrique N1',statut:'sorti'},
+    {id:'BAD-001',type:'badge',desc:'Accès général',statut:'sorti'},
+    {id:'BAD-002',type:'badge',desc:'Badge visiteur',statut:'disponible'},
+    {id:'BAD-003',type:'badge',desc:'Badge prestataire',statut:'disponible'},
+  ];
+  const d45=new Date(Date.now()-45*864e5).toISOString(),d10=new Date(Date.now()-10*864e5).toISOString(),d2=new Date(Date.now()-2*864e5).toISOString();
+  DB.emprunts=[
+    {id:uid(),itemId:'CLE-001',type:'clé',nom:'MARTIN',prenom:'Sophie',societe:'Enedis',tel:'06 11 22 33 44',email:'s.martin@enedis.fr',comment:'Travaux réseau',date:d45},
+    {id:uid(),itemId:'CLE-004',type:'clé',nom:'DUBOIS',prenom:'Pierre',societe:'ABB France',tel:'07 55 66 77 88',email:'p.dubois@abb.com',comment:'Maintenance',date:d10},
+    {id:uid(),itemId:'BAD-001',type:'badge',nom:'LEROY',prenom:'Marie',societe:"Bureau d'études",tel:'06 99 88 77 66',email:'m.leroy@bureau.fr',comment:'Visite de site',date:d2},
+  ];
+  DB.hist=[
+    {date:d45,action:'EMPRUNT',itemId:'CLE-001',type:'clé',nom:'MARTIN',prenom:'Sophie',societe:'Enedis',tel:'06 11 22 33 44',email:'s.martin@enedis.fr',comment:'Travaux réseau'},
+    {date:d10,action:'EMPRUNT',itemId:'CLE-004',type:'clé',nom:'DUBOIS',prenom:'Pierre',societe:'ABB France',tel:'07 55 66 77 88',email:'p.dubois@abb.com',comment:'Maintenance'},
+    {date:d2,action:'EMPRUNT',itemId:'BAD-001',type:'badge',nom:'LEROY',prenom:'Marie',societe:"Bureau d'études",tel:'06 99 88 77 66',email:'m.leroy@bureau.fr',comment:'Visite de site'},
+  ];
+  save();
+}
+
+// ═══ NAV ═══
+const loaders={dashboard:loadDash,inventaire:renderInv,historique:renderHist,alertes:renderAlertes,qrcodes:renderQR,params:applyParams};
+function go(e,id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  e.target.classList.add('active');
+  if(loaders[id])loaders[id]();
+}
+
+// ═══ DASHBOARD ═══
+function loadDash(){
+  document.getElementById('d-date').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const tot=DB.items.length,dispo=DB.items.filter(i=>i.statut==='disponible').length,sortis=DB.emprunts.length,alertes=getAlertes().length,delai=DB.params.delai;
+  document.getElementById('kpis').innerHTML=`<div class="kpi"><div class="kpi-val">${tot}</div><div class="kpi-label">Total clés & badges</div></div><div class="kpi ok"><div class="kpi-val">${dispo}</div><div class="kpi-label">Disponibles</div></div><div class="kpi warn"><div class="kpi-val">${sortis}</div><div class="kpi-label">Actuellement sortis</div></div><div class="kpi danger"><div class="kpi-val">${alertes}</div><div class="kpi-label">Alertes > ${delai}j</div></div>`;
+  document.getElementById('tb-sortis').innerHTML=DB.emprunts.length?DB.emprunts.map(e=>{const j=jdiff(e.date);return`<tr><td><strong>${e.itemId}</strong></td><td><span class="badge ${e.type==='clé'?'b-cle':'b-badge'}">${e.type==='clé'?'🔑':'🪪'} ${e.type}</span></td><td>${e.nom} ${e.prenom}</td><td>${fd(e.date)}</td><td><span class="badge ${j>delai?'b-alerte':'b-sorti'}">${j}j</span></td></tr>`;}).join(''):'<tr class="empty-row"><td colspan="5">Aucun objet sorti</td></tr>';
+  const al=getAlertes();
+  document.getElementById('d-alertes').innerHTML=al.length?al.map(e=>`<div class="al al-err">⚠️ <div><strong>${e.itemId}</strong> — ${e.nom} ${e.prenom} (${e.societe||'-'})<br><span style="font-size:.75rem">Sorti depuis <strong>${jdiff(e.date)} jours</strong> — ${e.email}</span></div></div>`).join(''):'<div class="al al-ok">✅ Aucune alerte en cours</div>';
+  const rec=[...DB.hist].reverse().slice(0,8);
+  document.getElementById('tb-recents').innerHTML=rec.length?rec.map(h=>`<tr><td>${fdt(h.date)}</td><td><span class="badge ${h.action==='EMPRUNT'?'b-sorti':'b-dispo'}">${h.action==='EMPRUNT'?'📤 Emprunt':'📥 Retour'}</span></td><td><strong>${h.itemId}</strong></td><td>${h.type==='clé'?'🔑':'🪪'} ${h.type}</td><td>${h.nom} ${h.prenom}</td><td>${h.societe||'-'}</td></tr>`).join(''):'<tr class="empty-row"><td colspan="6">Aucune opération</td></tr>';
+  document.getElementById('sync-txt').textContent=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ═══ AGENT IA — APPEL CLAUDE ═══
+async function callClaude(messages, systemPrompt) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: messages
+    })
+  });
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content[0].text;
+}
+
+// ═══ AGENT — SAISIE LANGAGE NATUREL ═══
+function setPrompt(txt){ document.getElementById('agent-in').value=txt; }
+
+async function agentSaisie() {
+  const input = document.getElementById('agent-in').value.trim();
+  if (!input) return;
+  const btn = document.getElementById('agent-btn');
+  const resp = document.getElementById('agent-resp');
+  btn.disabled = true;
+  resp.className = 'agent-response show';
+  resp.innerHTML = '<div class="typing"><span></span><span></span><span></span></div> Analyse en cours…';
+
+  const inventaire = DB.items.map(i => i.id + ' (' + i.type + ' – ' + (i.desc||'') + ' – ' + i.statut + ')').join(', ');
+
+  try {
+    const system = `Tu es un assistant pour une application de gestion des accès (GAP) du Poste RTE Bourbonnais.
+Ton rôle est d'extraire les informations d'emprunt depuis une description en langage naturel et de retourner un JSON strict.
+Inventaire disponible : ${inventaire}
+Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ou après, sans balises markdown.
+Format : {"item_id":"CLE-001","item_type":"clé","nom":"DUPONT","prenom":"Jean","societe":"Enedis","tel":"06 12 34 56 78","email":"jean.dupont@enedis.fr","comment":"","message":"Résumé de ce que tu as compris"}
+Si une info manque, laisse le champ vide "". item_id doit correspondre à un item de l'inventaire si possible.`;
+
+    const raw = await callClaude([{role:'user', content: input}], system);
+    const clean = raw.replace(/```json|```/g,'').trim();
+    const data = JSON.parse(clean);
+
+    // Remplir le formulaire
+    if(data.item_id) document.getElementById('e-num').value = data.item_id;
+    if(data.item_type) document.getElementById('e-type').value = data.item_type;
+    if(data.nom) document.getElementById('e-nom').value = data.nom;
+    if(data.prenom) document.getElementById('e-prenom').value = data.prenom;
+    if(data.societe) document.getElementById('e-societe').value = data.societe;
+    if(data.tel) document.getElementById('e-tel').value = data.tel;
+    if(data.email) document.getElementById('e-email').value = data.email;
+    if(data.comment) document.getElementById('e-comment').value = data.comment;
+    checkItem();
+
+    const nb = [data.item_id,data.nom,data.prenom,data.email,data.tel].filter(Boolean).length;
+    resp.innerHTML = '✅ <strong>' + (data.message||'Formulaire rempli') + '</strong> — ' + nb + ' champ(s) rempli(s)';
+    toast('✨ Formulaire rempli par l\'IA', 'ok');
+  } catch(e) {
+    resp.innerHTML = '❌ Erreur : ' + e.message;
+    toast('Erreur IA : ' + e.message, 'err');
+  }
+  btn.disabled = false;
+}
+
+// ═══ OCR IA — PHOTO CARTE DE VISITE ═══
+async function doOCR() {
+  const file = document.getElementById('ocr-f').files[0];
+  if (!file) return;
+  const z = document.getElementById('ocr-z');
+  z.className = 'ocr-zone loading';
+  z.onclick = null;
+  z.innerHTML = '<div style="font-size:1.4rem">⏳</div><strong>Analyse IA de la carte de visite…</strong><div class="muted" id="ocr-sub">Claude lit et comprend le contenu</div>';
+
+  try {
+    // Convertir en base64
+    const base64 = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = e => res(e.target.result.split(',')[1]);
+      reader.onerror = rej;
+      reader.readAsDataURL(file);
+    });
+
+    const mediaType = file.type || 'image/jpeg';
+
+    const system = `Tu es un assistant OCR spécialisé dans la lecture de cartes de visite professionnelles.
+Extrait toutes les informations de contact visibles sur cette image.
+Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ou après, sans balises markdown.
+Format : {"nom":"","prenom":"","societe":"","poste":"","tel":"","mobile":"","email":"","adresse":"","message":"Ce que tu as lu"}
+Pour le téléphone : préfère le mobile (06/07) dans le champ "mobile", mets les autres dans "tel".
+Si une info n'est pas visible, laisse le champ vide "".`;
+
+    const raw = await callClaude([{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+        { type: 'text', text: 'Extrais toutes les coordonnées de cette carte de visite.' }
+      ]
+    }], system);
+
+    const clean = raw.replace(/```json|```/g,'').trim();
+    const data = JSON.parse(clean);
+
+    if(data.nom) document.getElementById('e-nom').value = data.nom;
+    if(data.prenom) document.getElementById('e-prenom').value = data.prenom;
+    if(data.societe) document.getElementById('e-societe').value = data.societe;
+    if(data.mobile || data.tel) document.getElementById('e-tel').value = data.mobile || data.tel;
+    if(data.email) document.getElementById('e-email').value = data.email;
+
+    const nb = [data.nom,data.prenom,data.societe,data.mobile||data.tel,data.email].filter(Boolean).length;
+    z.className = 'ocr-zone success';
+    z.innerHTML = '<div style="font-size:1.2rem">✅</div><strong>OCR IA réussi — ' + nb + ' champ(s) rempli(s)</strong><div class="muted">' + (data.message||'') + '</div>';
+    z.onclick = () => document.getElementById('ocr-f').click();
+    toast('📸 ' + nb + ' coordonnée(s) extraite(s) par l\'IA', 'ok');
+
+  } catch(e) {
+    z.className = 'ocr-zone error';
+    z.innerHTML = '<div style="font-size:1.2rem">❌</div><strong>Erreur : ' + e.message + '</strong><div class="muted">Cliquer pour réessayer</div>';
+    z.onclick = () => document.getElementById('ocr-f').click();
+    toast('Erreur OCR : ' + e.message, 'err');
+  }
+}
+
+// ═══ AUTOCOMPLETE ═══
+function acShow(inputId,listId,cb){
+  const inp=document.getElementById(inputId),lst=document.getElementById(listId);
+  const val=inp.value.trim().toUpperCase();
+  const isR=inputId==='r-num';
+  let items=isR?DB.items.filter(i=>i.statut==='sorti'):DB.items;
+  if(val)items=items.filter(i=>i.id.toUpperCase().includes(val)||(i.desc||'').toUpperCase().includes(val));
+  if(!items.length){lst.innerHTML='<div class="ac-empty">'+(val?'Aucun résultat pour "'+val+'"':(isR?'Aucun objet sorti actuellement':'Aucun objet dans l\'inventaire'))+'</div>';lst.style.display='block';return;}
+  lst.innerHTML=items.slice(0,8).map(item=>{
+    const emp=DB.emprunts.find(e=>e.itemId===item.id);
+    const icon=item.type==='clé'?'🔑':'🪪';
+    const stCls=item.statut==='disponible'?'ac-st-dispo':'ac-st-sorti';
+    const stTxt=item.statut==='disponible'?'✅ Dispo':'🔴 '+(emp?emp.nom:'Sorti');
+    const fn=typeof cb==='function'?cb.name:'';
+    return '<div class="ac-item" onclick="acSel(\''+inputId+'\',\''+listId+'\',\''+item.id+'\','+fn+')"><span class="ac-id">'+icon+' '+item.id+'</span><span class="ac-desc">'+(item.desc||'')+'</span><span class="ac-st '+stCls+'">'+stTxt+'</span></div>';
+  }).join('');
+  lst.style.display='block';
+}
+function acSel(inputId,listId,value,cb){document.getElementById(inputId).value=value;document.getElementById(listId).style.display='none';if(typeof cb==='function')cb();}
+document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))document.querySelectorAll('.ac-list').forEach(l=>l.style.display='none');});
+document.addEventListener('keydown',e=>{
+  const active=document.querySelector('.ac-list[style*="block"]');if(!active)return;
+  const items=active.querySelectorAll('.ac-item');let sel=active.querySelector('.ac-item.selected');
+  if(e.key==='ArrowDown'){e.preventDefault();const n=sel?sel.nextElementSibling:items[0];if(n){if(sel)sel.classList.remove('selected');n.classList.add('selected');}}
+  else if(e.key==='ArrowUp'){e.preventDefault();const p=sel?sel.previousElementSibling:items[items.length-1];if(p){if(sel)sel.classList.remove('selected');p.classList.add('selected');}}
+  else if(e.key==='Enter'&&sel){e.preventDefault();sel.click();}
+  else if(e.key==='Escape')active.style.display='none';
+});
+
+// ═══ CHECK ITEM ═══
+let ct;
+function checkItem(){
+  clearTimeout(ct);ct=setTimeout(()=>{
+    const num=document.getElementById('e-num').value.trim().toUpperCase();
+    const z=document.getElementById('e-status');
+    if(!num){z.innerHTML='';return;}
+    const item=DB.items.find(i=>i.id.toUpperCase()===num);
+    if(!item){z.innerHTML='<div class="al al-warn">⚠️ "'+num+'" inconnu — sera créé automatiquement à la validation.</div>';return;}
+    if(item.statut==='sorti'){const e=DB.emprunts.find(e=>e.itemId===item.id);z.innerHTML='<div class="al al-err">🔴 Objet <strong>actuellement sorti</strong>'+(e?' par '+e.nom+' '+e.prenom:'')+' depuis '+(e?jdiff(e.date):'-')+' jours.</div>';}
+    else{z.innerHTML='<div class="al al-ok">✅ '+(item.type==='clé'?'🔑 Clé':'🪪 Badge')+' <strong>'+item.id+'</strong> — '+(item.desc||'')+' — <strong>Disponible</strong></div>';document.getElementById('e-type').value=item.type;}
+  },350);
+}
+
+// ═══ EMPRUNT ═══
+function doEmprunt(){
+  const num=document.getElementById('e-num').value.trim().toUpperCase();
+  const nom=document.getElementById('e-nom').value.trim();
+  const email=document.getElementById('e-email').value.trim();
+  if(!num||!nom||!email){toast('Numéro, nom et email sont obligatoires','err');return;}
+  let item=DB.items.find(i=>i.id.toUpperCase()===num);
+  if(!item){item={id:num,type:document.getElementById('e-type').value,desc:'',statut:'disponible'};DB.items.push(item);}
+  if(item.statut==='sorti'){toast('Cet objet est déjà emprunté !','err');return;}
+  const emp={id:uid(),itemId:item.id,type:item.type,nom,prenom:document.getElementById('e-prenom').value.trim(),societe:document.getElementById('e-societe').value.trim(),tel:document.getElementById('e-tel').value.trim(),email,comment:document.getElementById('e-comment').value.trim(),date:new Date().toISOString()};
+  try {
+    // Supabase : créer emprunt + mettre à jour statut + historique
+    await sbFetch('emprunts','POST',{id:emp.id,item_id:emp.itemId,nom:emp.nom,prenom:emp.prenom,societe:emp.societe,telephone:emp.tel,email:emp.email,commentaire:emp.comment},'');
+    await sbFetch('items','PATCH',{statut:'sorti'},'?id=eq.'+encodeURIComponent(item.id));
+    await sbFetch('historique','POST',{action:'EMPRUNT',item_id:item.id,item_type:item.type,nom,prenom:emp.prenom,societe:emp.societe,telephone:emp.tel,email,commentaire:emp.comment},'');
+    DB.emprunts.push(emp); item.statut='sorti';
+    DB.hist.unshift({date:emp.date,action:'EMPRUNT',itemId:item.id,type:item.type,nom,prenom:emp.prenom,societe:emp.societe,tel:emp.tel,email,comment:emp.comment});
+    saveLocal();
+    toast('✅ Emprunt de '+item.id+' enregistré pour '+nom+' '+emp.prenom,'ok');
+    resetE(); loadDash();
+  } catch(e) { toast('Erreur Supabase : '+e.message,'err'); }
+}
+function resetE(){
+  ['e-num','e-nom','e-prenom','e-societe','e-tel','e-email','e-comment'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('e-status').innerHTML='';
+  document.getElementById('e-ac').style.display='none';
+  document.getElementById('agent-in').value='';
+  document.getElementById('agent-resp').className='agent-response';
+  const z=document.getElementById('ocr-z');
+  z.className='ocr-zone';
+  z.innerHTML='<div style="font-size:1.6rem;margin-bottom:5px">📸</div><strong>Photo carte de visite — OCR par IA Claude</strong><div class="muted">Photographiez la carte · l\'IA extrait automatiquement toutes les coordonnées</div><input type="file" id="ocr-f" accept="image/*" capture="environment" style="display:none" onchange="doOCR()">';
+  z.onclick=()=>document.getElementById('ocr-f').click();
+}
+
+// ═══ RETOUR ═══
+let rt;
+function checkRetour(){
+  clearTimeout(rt);rt=setTimeout(()=>{
+    const num=document.getElementById('r-num').value.trim().toUpperCase();
+    const z=document.getElementById('r-result');
+    if(!num){z.innerHTML='';return;}
+    const emp=DB.emprunts.find(e=>e.itemId.toUpperCase()===num);
+    if(!emp){z.innerHTML='<div class="al al-warn">⚠️ Aucun emprunt en cours pour "'+num+'".</div>';return;}
+    const j=jdiff(emp.date);
+    z.innerHTML='<div class="al al-info">📋 <div><strong>'+emp.itemId+'</strong> ('+emp.type+') — Sorti depuis <strong>'+j+' jours</strong><br>Emprunteur : '+emp.nom+' '+emp.prenom+' — '+(emp.societe||'-')+'<br><span class="muted">Depuis le '+fd(emp.date)+'</span></div></div><button class="btn bs" onclick="doRetour(\''+emp.id+'\')">✅ Confirmer le retour</button>';
+  },350);
+}
+function doRetour(empId){
+  const emp=DB.emprunts.find(e=>e.id===empId);if(!emp)return;
+  const item=DB.items.find(i=>i.id===emp.itemId);
+  try {
+    await sbFetch('emprunts','DELETE',null,'?id=eq.'+encodeURIComponent(empId));
+    await sbFetch('items','PATCH',{statut:'disponible'},'?id=eq.'+encodeURIComponent(emp.itemId));
+    await sbFetch('historique','POST',{action:'RETOUR',item_id:emp.itemId,item_type:emp.type,nom:emp.nom,prenom:emp.prenom,societe:emp.societe,telephone:emp.tel,email:emp.email,commentaire:''},'');
+    if(item)item.statut='disponible';
+    DB.emprunts=DB.emprunts.filter(e=>e.id!==empId);
+    DB.hist.unshift({date:new Date().toISOString(),action:'RETOUR',itemId:emp.itemId,type:emp.type,nom:emp.nom,prenom:emp.prenom,societe:emp.societe,tel:emp.tel,email:emp.email,comment:''});
+    saveLocal();
+    toast('✅ Retour de '+emp.itemId+' enregistré','ok');
+    document.getElementById('r-num').value='';document.getElementById('r-ac').style.display='none';
+    document.getElementById('r-result').innerHTML='<div class="al al-ok">✅ Retour enregistré avec succès !</div>';
+    loadDash();
+  } catch(e) { toast('Erreur Supabase : '+e.message,'err'); }
+}
+
+// ═══ INVENTAIRE ═══
+function renderInv(){
+  let items=[...DB.items];
+  const s=(document.getElementById('inv-s').value||'').toLowerCase();
+  const st=document.getElementById('inv-st').value,ty=document.getElementById('inv-ty').value;
+  if(s)items=items.filter(i=>(i.id+i.desc).toLowerCase().includes(s));
+  if(st)items=items.filter(i=>i.statut===st);if(ty)items=items.filter(i=>i.type===ty);
+  document.getElementById('tb-inv').innerHTML=items.length?items.map(item=>{
+    const emp=DB.emprunts.find(e=>e.itemId===item.id);
+    return'<tr><td><strong>'+item.id+'</strong></td><td><span class="badge '+(item.type==='clé'?'b-cle':'b-badge')+'">'+(item.type==='clé'?'🔑':'🪪')+' '+item.type+'</span></td><td>'+(item.desc||'-')+'</td><td><span class="badge '+(item.statut==='disponible'?'b-dispo':'b-sorti')+'">'+(item.statut==='disponible'?'✅ Disponible':'🔴 Sorti')+'</span></td><td>'+(emp?emp.nom+' '+emp.prenom:'-')+'</td><td>'+(emp?jdiff(emp.date)+'j':'-')+'</td><td class="abtn"><button class="btn bg bsm" onclick="showQRModal(\''+item.id+'\',\''+item.type+'\',\''+(item.desc||'').replace(/'/g,"\\'")+'\')">🔲</button>'+(emp?'<button class="btn bs bsm" onclick="retourModal(\''+item.id+'\',\''+emp.nom+'\',\''+emp.prenom+'\','+jdiff(emp.date)+',\''+fd(emp.date)+'\')">📥 Retour</button>':'')+(item.statut==='disponible'?'<button class="btn bd bsm" onclick="delItem(\''+item.id+'\')">🗑️</button>':'')+'</td></tr>';
+  }).join(''):'<tr class="empty-row"><td colspan="7">Aucun élément</td></tr>';
+}
+function doAddItem(){
+  const id=(document.getElementById('ni-num').value||'').trim().toUpperCase(),type=document.getElementById('ni-type').value,desc=document.getElementById('ni-desc').value.trim();
+  if(!id){toast('Numéro obligatoire','err');return;}
+  if(DB.items.find(i=>i.id===id)){toast('Ce numéro existe déjà','err');return;}
+  try {
+    await sbFetch('items','POST',{id,type,description:desc,statut:'disponible'},'?on_conflict=id');
+    DB.items.push({id,type,desc,statut:'disponible'});
+    saveLocal(); cm('m-add'); renderInv(); toast('✅ '+id+' ajouté(e)','ok');
+    document.getElementById('ni-num').value='';document.getElementById('ni-desc').value='';
+  } catch(e) { toast('Erreur : '+e.message,'err'); }
+}
+async function delItem(id){if(!confirm('Supprimer '+id+' ?'))return;try{await sbFetch('items','DELETE',null,'?id=eq.'+encodeURIComponent(id));DB.items=DB.items.filter(i=>i.id!==id);saveLocal();renderInv();toast('Supprimé','ok');}catch(e){toast('Erreur : '+e.message,'err');}}
+function retourModal(itemId,nom,prenom,jours,dateFr){
+  document.getElementById('m-retour-c').innerHTML='<div class="al al-info"><strong>'+itemId+'</strong> — emprunté par '+nom+' '+prenom+'<br>Depuis '+jours+' jours ('+dateFr+')</div><div class="btn-row"><button class="btn bs" onclick="doRetourDirect(\''+itemId+'\')">✅ Confirmer</button><button class="btn bg" onclick="cm(\'m-retour\')">Annuler</button></div>';
+  document.getElementById('m-retour').classList.add('open');
+}
+function doRetourDirect(itemId){const emp=DB.emprunts.find(e=>e.itemId===itemId);if(emp){doRetour(emp.id);renderInv();cm('m-retour');}}
+
+// ═══ QR ═══
+function renderQR(){
+  const grid=document.getElementById('qr-grid');grid.innerHTML='';
+  DB.items.forEach(item=>{
+    const sid=item.id.replace(/[^a-z0-9]/gi,'_');
+    const div=document.createElement('div');div.className='qr-item';
+    div.onclick=()=>showQRModal(item.id,item.type,item.desc||'');
+    div.innerHTML='<div class="qr-num">'+item.id+'</div><div class="qr-type">'+(item.type==='clé'?'🔑 Clé':'🪪 Badge')+'</div><div id="qr-'+sid+'"></div><div class="muted" style="font-size:.67rem;max-width:120px;overflow:hidden;text-overflow:ellipsis">'+(item.desc||'')+'</div>';
+    grid.appendChild(div);
+    setTimeout(()=>{try{new QRCode(document.getElementById('qr-'+sid),{text:item.id,width:90,height:90,colorDark:'#0A2E52',colorLight:'#fff'});}catch{}},80);
+  });
+}
+function showQRModal(itemId,type,desc){
+  const mid='qrm-'+itemId.replace(/[^a-z0-9]/gi,'_');
+  document.getElementById('m-qr-title').textContent='🔲 '+itemId;
+  document.getElementById('m-qr-desc').textContent=desc;
+  document.getElementById('m-qr-c').innerHTML='<div id="'+mid+'"></div>';
+  document.getElementById('m-qr').classList.add('open');
+  setTimeout(()=>{try{new QRCode(document.getElementById(mid),{text:itemId,width:200,height:200,colorDark:'#0A2E52',colorLight:'#fff'});}catch{}},80);
+}
+
+// ═══ HISTORIQUE ═══
+function renderHist(){
+  let h=[...DB.hist].reverse();
+  const s=(document.getElementById('h-s').value||'').toLowerCase(),f=document.getElementById('h-f').value;
+  if(s)h=h.filter(x=>JSON.stringify(x).toLowerCase().includes(s));if(f)h=h.filter(x=>x.action===f);
+  document.getElementById('tb-hist').innerHTML=h.length?h.map(x=>'<tr><td>'+fdt(x.date)+'</td><td><span class="badge '+(x.action==='EMPRUNT'?'b-sorti':'b-dispo')+'">'+(x.action==='EMPRUNT'?'📤 Emprunt':'📥 Retour')+'</span></td><td><strong>'+x.itemId+'</strong></td><td>'+(x.type==='clé'?'🔑':'🪪')+' '+x.type+'</td><td>'+x.nom+'</td><td>'+x.prenom+'</td><td>'+(x.societe||'-')+'</td><td>'+(x.tel||'-')+'</td><td>'+(x.email||'-')+'</td><td>'+(x.comment||'-')+'</td></tr>').join(''):'<tr class="empty-row"><td colspan="10">Aucune opération</td></tr>';
+}
+
+// ═══ ALERTES ═══
+function getAlertes(){return DB.emprunts.filter(e=>jdiff(e.date)>DB.params.delai);}
+function renderAlertes(){
+  const al=getAlertes();
+  document.getElementById('al-list').innerHTML=al.length?al.map(e=>'<div style="border:1px solid var(--border);border-radius:8px;padding:13px;margin-bottom:9px"><div class="fb"><div><span class="badge b-alerte">⚠️ '+jdiff(e.date)+' jours</span> <strong style="margin-left:6px">'+e.itemId+'</strong></div><div class="abtn"><button class="btn bw bsm" onclick="showMail(\''+e.id+'\')">📧 Mail</button><button class="btn bs bsm" onclick="doRetour(\''+e.id+'\');renderAlertes()">📥 Retour</button></div></div><div style="margin-top:8px;font-size:.82rem"><strong>'+e.nom+' '+e.prenom+'</strong> — '+(e.societe||'-')+'<br>📧 '+e.email+' | 📞 '+(e.tel||'-')+'<br><span class="muted">Emprunté le '+fd(e.date)+'</span></div></div>').join(''):'<div class="al al-ok">✅ Aucune alerte — tous les emprunts sont dans les délais.</div>';
+}
+function mailTxt(e){return'<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:12px;overflow:hidden;font-size:.82rem"><div style="background:var(--bleu);color:#fff;padding:9px 13px">📧 À : <strong>'+e.email+'</strong> | Objet : Rappel retour '+e.type+' '+e.itemId+' – '+DB.params.site+'</div><div style="padding:14px;line-height:1.7">Bonjour <strong>'+e.prenom+' '+e.nom+'</strong>,<br><br>Nous vous rappelons que vous avez emprunté le/la <strong>'+e.type+' n°'+e.itemId+'</strong> au <strong>'+DB.params.site+'</strong> le <strong>'+fd(e.date)+'</strong>, soit il y a <strong>'+jdiff(e.date)+' jours</strong>.<br><br>La durée habituelle étant de '+DB.params.delai+' jours, merci de procéder au retour dans les meilleurs délais.<br><br>Cordialement,<br><strong>L\'équipe Accès Poste – '+DB.params.site+'</strong></div></div>';}
+function previewMails(){const al=getAlertes();if(!al.length){toast('Aucune relance à envoyer','ok');return;}document.getElementById('mail-prev').innerHTML=al.map(e=>mailTxt(e)).join('');}
+function showMail(id){const e=DB.emprunts.find(x=>x.id===id);if(e)document.getElementById('mail-prev').innerHTML=mailTxt(e);}
+
+// ═══ CAMÉRA ═══
+let streams={};
+function tog(id){const z=document.getElementById(id);z.style.display=z.style.display==='none'?'block':'none';}
+function startCam(videoId,targetId,cb){
+  const vid=document.getElementById(videoId);
+  if(!navigator.mediaDevices?.getUserMedia){const v=prompt('Caméra non disponible. Saisissez le numéro :');if(v){if(targetId)document.getElementById(targetId).value=v.toUpperCase();if(typeof cb==='function')cb();}return;}
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}).then(stream=>{vid.style.display='block';vid.srcObject=stream;vid.play();streams[videoId]=stream;setTimeout(()=>{stopCam(videoId);toast('📷 Caméra arrêtée — saisissez le numéro manuellement','warn');},3000);}).catch(()=>{const v=prompt('Accès caméra refusé. Saisissez le numéro :');if(v){if(targetId)document.getElementById(targetId).value=v.toUpperCase();if(typeof cb==='function')cb();}});
+}
+function stopCam(id){if(streams[id]){streams[id].getTracks().forEach(t=>t.stop());delete streams[id];}const v=document.getElementById(id);if(v){v.style.display='none';v.srcObject=null;}}
+function handleScan(){const v=prompt('Numéro scanné :');if(!v)return;const num=v.toUpperCase();const item=DB.items.find(i=>i.id.toUpperCase()===num);const z=document.getElementById('s-result');if(!item){z.innerHTML='<div class="al al-warn">⚠️ "'+num+'" inconnu.</div>';return;}const emp=DB.emprunts.find(e=>e.itemId===item.id);if(item.statut==='disponible'){z.innerHTML='<div class="al al-ok">✅ <strong>'+item.id+'</strong> — Disponible</div><button class="btn bs" onclick="go(event,\'emprunter\');document.getElementById(\'e-num\').value=\''+item.id+'\';checkItem()">📤 Emprunter</button>';}else{z.innerHTML='<div class="al al-err">🔴 <strong>'+item.id+'</strong> — Sorti par <strong>'+(emp?emp.nom+' '+emp.prenom:'-')+'</strong> depuis '+(emp?jdiff(emp.date):'-')+' jours</div><button class="btn bw" onclick="go(event,\'retour\');document.getElementById(\'r-num\').value=\''+item.id+'\';checkRetour()">📥 Retour</button>';}}
+
+// ═══ PARAMS ═══
+function applyParams(){
+  const p=DB.params;
+  if(document.getElementById('p-delai'))document.getElementById('p-delai').value=p.delai||30;
+  if(document.getElementById('p-freq'))document.getElementById('p-freq').value=p.freq||30;
+  if(document.getElementById('p-site'))document.getElementById('p-site').value=p.site||'';
+  if(document.getElementById('p-email'))document.getElementById('p-email').value=p.email||'';
+}
+async function saveParams(){
+  DB.params={delai:parseInt(document.getElementById('p-delai').value)||30,freq:parseInt(document.getElementById('p-freq').value)||30,site:document.getElementById('p-site').value,email:document.getElementById('p-email').value};
+  saveLocal();
+  try {
+    const rows=[{cle:'delai_relance',valeur:String(DB.params.delai)},{cle:'freq_relance',valeur:String(DB.params.freq)},{cle:'nom_site',valeur:DB.params.site},{cle:'email_from',valeur:DB.params.email}];
+    await sbFetch('parametres','POST',rows,'?on_conflict=cle');
+    toast('✅ Paramètres sauvegardés','ok');
+  } catch(e) { toast('Sauvegardé localement uniquement','warn'); }
+}
+
+// ═══ EXPORT ═══
+function expCSV(){const cols=['date','action','itemId','type','nom','prenom','societe','tel','email','comment'];const csv=[cols.join(';'),...DB.hist.map(h=>cols.map(c=>'"'+(h[c]||'').replace(/"/g,'""')+'"').join(';'))].join('\n');dl('gap_historique.csv','data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv));}
+function expJSON(){dl('gap_backup.json','data:application/json,'+encodeURIComponent(JSON.stringify(DB,null,2)));}
+function impJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(confirm('Importer ? L\'état actuel sera remplacé.')){DB={...DB,...d};save();applyParams();loadDash();toast('Import réussi','ok');}}catch{toast('Fichier invalide','err');}};r.readAsText(f);}
+async function resetAll(){if(!confirm('⚠️ Supprimer TOUTES les données dans Supabase ? Irréversible.'))return;try{await Promise.all([sbFetch('emprunts','DELETE',null,'?id=neq.0'),sbFetch('historique','DELETE',null,'?id=neq.0')]);await sbFetch('items','PATCH',{statut:'disponible'},'?statut=eq.sorti');DB.emprunts=[];DB.hist=[];saveLocal();await load();loadDash();toast('Données réinitialisées','warn');}catch(e){toast('Erreur : '+e.message,'err');}}
+function dl(name,url){const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();}
+function cm(id){document.getElementById(id).classList.remove('open');}
+function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className='show t'+type;clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3500);}
+
+// ═══ INIT ═══
+load().then(()=>loadDash());
+// Sync automatique toutes les 30s
+setInterval(async()=>{
+  try{
+    const [items,emprunts]=await Promise.all([sbFetch('items','GET',null,'?order=id'),sbFetch('emprunts','GET',null,'?order=date_emprunt')]);
+    DB.items=items||[];DB.emprunts=emprunts||[];
+    if(document.getElementById('page-dashboard').classList.contains('active'))loadDash();
+    if(document.getElementById('page-inventaire').classList.contains('active'))renderInv();
+    document.getElementById('sync-txt').textContent=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){}
+},30000);
+</script>
+</body>
+</html>

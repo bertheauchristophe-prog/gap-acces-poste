@@ -1,0 +1,112 @@
+name: Relances automatiques GAP
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # Chaque jour à 8h heure française (7h UTC)
+  workflow_dispatch:       # Permet aussi de lancer manuellement
+
+jobs:
+  envoyer-relances:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Envoyer les relances
+        run: node -e "
+          const https = require('https');
+          
+          // Config
+          const SB_URL = 'https://haqqyrycdmmusyxnsiqw.supabase.co';
+          const SB_KEY = process.env.SB_KEY;
+          const EJS_SERVICE  = 'service_h6a8p3l';
+          const EJS_TEMPLATE = 'template_an5b4bb';
+          const EJS_KEY      = 'uRh8B6H60bDSoWVCT';
+          
+          function sbGet(path) {
+            return new Promise((resolve, reject) => {
+              const url = new URL(SB_URL + '/rest/v1/' + path);
+              url.searchParams.append('apikey', SB_KEY);
+              https.get(url.toString(), {
+                headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+              }, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => resolve(JSON.parse(data)));
+              }).on('error', reject);
+            });
+          }
+          
+          function sendMail(params) {
+            return new Promise((resolve, reject) => {
+              const body = JSON.stringify({
+                service_id: EJS_SERVICE,
+                template_id: EJS_TEMPLATE,
+                user_id: EJS_KEY,
+                template_params: params
+              });
+              const req = https.request({
+                hostname: 'api.emailjs.com',
+                path: '/api/v1.0/email/send',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Content-Length': body.length }
+              }, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => resolve({ status: res.statusCode, body: data }));
+              });
+              req.on('error', reject);
+              req.write(body);
+              req.end();
+            });
+          }
+          
+          async function main() {
+            const items    = await sbGet('items?select=id,duree_max');
+            const emprunts = await sbGet('emprunts?select=*');
+            const params_sb = await sbGet('parametres?select=cle,valeur');
+            
+            const paramsMap = {};
+            params_sb.forEach(p => paramsMap[p.cle] = p.valeur);
+            const site      = paramsMap.nom_site || 'Poste RTE Bourbonnais';
+            const emailContact = paramsMap.email_from || '';
+            const delaiGlobal  = parseInt(paramsMap.delai_relance || '30');
+            
+            const now = Date.now();
+            let envoyes = 0;
+            
+            for (const e of emprunts) {
+              const item = items.find(i => i.id === e.item_id);
+              const delai = (item && item.duree_max) ? item.duree_max : delaiGlobal;
+              const dateEmprunt = new Date(e.date_emprunt);
+              const jours = Math.floor((now - dateEmprunt) / 86400000);
+              
+              if (jours <= delai) continue;
+              if (!e.email) continue;
+              
+              console.log('Relance pour', e.item_id, '-', e.nom, e.prenom, '(', jours, 'jours)');
+              
+              const r = await sendMail({
+                to_email:     e.email,
+                nom:          e.nom || '',
+                prenom:       e.prenom || '',
+                item_id:      e.item_id,
+                item_type:    e.item_type || 'clé',
+                site:         site,
+                date_emprunt: dateEmprunt.toLocaleDateString('fr-FR'),
+                nb_jours:     String(jours),
+                duree_max:    String(delai),
+                email_contact: emailContact
+              });
+              
+              console.log('Résultat:', r.status, r.body);
+              envoyes++;
+              
+              // Pause entre les mails
+              await new Promise(r => setTimeout(r, 1000));
+            }
+            
+            console.log(envoyes + ' relance(s) envoyée(s)');
+          }
+          
+          main().catch(console.error);
+        "
+        env:
+          SB_KEY: ${{ secrets.SB_KEY }}

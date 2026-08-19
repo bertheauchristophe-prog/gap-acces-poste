@@ -919,7 +919,7 @@ async function purgerHistorique(){
   const mois = parseInt(document.getElementById('p-purge').value)||12;
   if(mois===0){toast('Durée de purge à 0 — aucune purge','warn');return;}
   const cutoff = new Date(Date.now() - mois*30*86400000).toISOString();
-  if(!confirm('Supprimer l'historique antérieur au '+new Date(cutoff).toLocaleDateString('fr-FR')+' ?'))return;
+  if(!confirm('Supprimer l\'historique antérieur au '+new Date(cutoff).toLocaleDateString('fr-FR')+' ?'))return;
   try {
     await sbFetch('historique','DELETE',null,'?created_at=lt.'+encodeURIComponent(cutoff));
     DB.hist = DB.hist.filter(h=>new Date(h.date)>=new Date(cutoff));

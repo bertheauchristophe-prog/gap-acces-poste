@@ -6,6 +6,7 @@
 <title>GAP – Gestion des Accès Poste</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bleu:#0A2E52;--bleu-med:#1A5276;--bleu-clair:#2E86C1;--accent:#F39C12;--accent2:#E74C3C;--vert:#1ABC9C;--bg:#F0F4F8;--blanc:#fff;--gris:#ECF0F1;--texte:#1C2833;--light:#5D6D7E;--border:#BDC3C7;--shadow:0 2px 12px rgba(10,46,82,.10);--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -515,21 +516,29 @@ const EJS_TEMPLATE_RETOUR = 'template_an5b4bb'; // Même template pour l'instant
 const EJS_KEY             = 'uRh8B6H60bDSoWVCT';
 
 // ═══ SUPABASE CONFIG ═══
-// ⚠️ SQL à exécuter dans Supabase pour l'archivage des bons :
-// CREATE TABLE IF NOT EXISTS bons_archives (
-//   id bigserial primary key,
-//   nom_fichier text unique,
-//   action text,
-//   contenu_html text,
-//   created_at timestamptz default now()
-// );
-// CREATE POLICY "public" ON bons_archives FOR ALL USING (true) WITH CHECK (true);
-// ALTER TABLE bons_archives ENABLE ROW LEVEL SECURITY;
+// Sécurité : l'accès aux tables est réservé aux agents connectés et autorisés
+// (table agents_autorises + politiques RLS côté Supabase).
 
 const SB_URL = 'https://haqqyrycdmmusyxnsiqw.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhcXF5cnljZG1tdXN5eG5zaXF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjU2OTcsImV4cCI6MjA5NzkwMTY5N30.RC9lAe9RCmIqifLcpuH9qzi8BBH5cbxvLTW7_QDpVh8';
 
+const sbClient = supabase.createClient(SB_URL, SB_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'gap-auth' }
+});
+async function jetonAgent() {
+  const { data } = await sbClient.auth.getSession();
+  return data && data.session ? data.session.access_token : null;
+}
+
+// Neutralise les caractères pouvant être interprétés comme du HTML/JS
+function clean(v) {
+  return String(v == null ? '' : v).replace(/[<>"`]/g, '').replace(/'/g, '\u2019');
+}
+function val(id) { const el = document.getElementById(id); return el ? clean(el.value.trim()) : ''; }
+
 async function sbFetch(table, method='GET', body=null, params='') {
+  const token = await jetonAgent();
+  if (!token) { afficherConnexion(); throw new Error('Session expirée, reconnectez-vous'); }
   // Ajouter la clé API directement dans l'URL (plus fiable sur mobile)
   const sep = params.includes('?') ? '&' : '?';
   const url = SB_URL + '/rest/v1/' + table + params + sep + 'apikey=' + SB_KEY;
@@ -539,7 +548,7 @@ async function sbFetch(table, method='GET', body=null, params='') {
     credentials: 'omit',
     headers: {
       'apikey': SB_KEY,
-      'Authorization': 'Bearer ' + SB_KEY,
+      'Authorization': 'Bearer ' + token,
       'Content-Type': 'application/json',
       'Prefer': method==='POST' ? 'return=representation' : (method==='PATCH' ? 'return=representation' : '')
     }
@@ -556,11 +565,31 @@ async function sbFetch(table, method='GET', body=null, params='') {
   return text ? JSON.parse(text) : null;
 }
 
+function mapItems(items){
+  return (items||[]).map(i=>({...i, id:clean(i.id), type:clean(i.type), description:clean(i.description), desc:clean(i.description||i.desc||''), duree_max:i.duree_max||null}));
+}
+function mapEmprunts(emprunts){
+  return (emprunts||[]).map(e=>({
+    ...e,
+    itemId:       clean(e.item_id || e.itemId || ''),
+    item_id:      clean(e.item_id || e.itemId || ''),
+    type:         clean(e.item_type || e.type || (DB.items.find(i=>i.id===(e.item_id||e.itemId))||{}).type || 'clé'),
+    tel:          clean(e.telephone || e.tel || ''),
+    comment:      clean(e.commentaire || e.comment || ''),
+    date:         e.date_emprunt || e.date || new Date().toISOString(),
+    date_emprunt: e.date_emprunt || e.date || new Date().toISOString(),
+    societe:      clean(e.societe),
+    email:        clean(e.email),
+    nom:          clean(e.nom),
+    prenom:       clean(e.prenom),
+  }));
+}
+
 // ═══ STATE (cache local) ═══
 let DB={items:[],emprunts:[],hist:[],params:{delai:30,freq:30,site:'Poste RTE Bourbonnais',email:''}};
 
 // Sauvegarde locale en fallback
-function saveLocal(){try{localStorage.setItem('gap_v2',JSON.stringify(DB));}catch(e){}}
+function saveLocal(){try{localStorage.setItem('gap_v2',JSON.stringify(DB));}catch(e){console.warn('Copie locale impossible:',e.message);showBanner('⚠️ Copie locale impossible sur cet appareil ('+e.message+'). Les données enregistrées dans Supabase ne sont pas affectées.');}}
 
 async function load(){
   document.getElementById('sync-txt').textContent = 'Connexion…';
@@ -573,25 +602,13 @@ async function load(){
       sbFetch('parametres','GET',null,'?select=cle,valeur')
     ]);
     console.log('Supabase OK - items:', (items||[]).length, 'emprunts:', (emprunts||[]).length);
-    DB.items    = (items||[]).map(i=>({...i, desc:i.description||i.desc||'', duree_max:i.duree_max||null}));
-    DB.emprunts = (emprunts||[]).map(e=>({
-      ...e,
-      itemId:       e.item_id       || e.itemId      || '',
-      type:         e.item_type     || e.type         || (DB.items.find(i=>i.id===(e.item_id||e.itemId))||{}).type || 'clé',
-      tel:          e.telephone     || e.tel          || '',
-      comment:      e.commentaire   || e.comment      || '',
-      date:         e.date_emprunt  || e.date         || new Date().toISOString(),
-      date_emprunt: e.date_emprunt  || e.date         || new Date().toISOString(),
-      societe:      e.societe       || '',
-      email:        e.email         || '',
-      nom:          e.nom           || '',
-      prenom:       e.prenom        || '',
-    }));
+    DB.items    = mapItems(items);
+    DB.emprunts = mapEmprunts(emprunts);
     DB.hist = (hist||[]).map(h=>({
       date:h.created_at, action:h.action,
-      itemId:h.item_id, type:h.item_type,
-      nom:h.nom, prenom:h.prenom, societe:h.societe,
-      tel:h.telephone, email:h.email, comment:h.commentaire,
+      itemId:clean(h.item_id), type:clean(h.item_type),
+      nom:clean(h.nom), prenom:clean(h.prenom), societe:clean(h.societe),
+      tel:clean(h.telephone), email:clean(h.email), comment:clean(h.commentaire),
       signature:h.signature||null
     }));
     // Params
@@ -599,13 +616,12 @@ async function load(){
     (params||[]).forEach(r => p[r.cle] = r.valeur);
     if (p.delai_relance) DB.params.delai = parseInt(p.delai_relance);
     if (p.freq_relance)  DB.params.freq  = parseInt(p.freq_relance);
-    if (p.nom_site)      DB.params.site  = p.nom_site;
+    if (p.nom_site)      DB.params.site  = clean(p.nom_site);
     if (p.email_from)    DB.params.email = p.email_from;
     if (p.purge_mois)    DB.params.purge = parseInt(p.purge_mois);
     document.getElementById('conn-banner') && (document.getElementById('conn-banner').style.display='none');
     document.getElementById('sync-txt').textContent = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
     saveLocal();
-    if (!DB.items.length) await initDemoSupabase();
   } catch(e) {
     console.warn('Supabase erreur:', e.message, e);
     showBanner('⚠️ Mode hors ligne — ' + e.message + ' (vérifiez la console F12)');
@@ -616,7 +632,6 @@ async function load(){
 
 function loadLocal(){
   try{const d=localStorage.getItem('gap_v2');if(d){const p=JSON.parse(d);DB={...DB,...p};}}catch(e){}
-  if(!DB.items.length) demo();
 }
 
 function showBanner(msg){
@@ -791,7 +806,7 @@ document.addEventListener('keydown',e=>{
 let ct;
 function checkItem(){
   clearTimeout(ct);ct=setTimeout(()=>{
-    const num=document.getElementById('e-num').value.trim().toUpperCase();
+    const num=val('e-num').toUpperCase();
     const z=document.getElementById('e-status');
     if(!num){z.innerHTML='';return;}
     const item=DB.items.find(i=>i.id.toUpperCase()===num);
@@ -804,8 +819,8 @@ function checkItem(){
 // ═══ EMPRUNT ═══
 async function doEmprunt(){
   const num=document.getElementById('e-num').value.trim().toUpperCase();
-  const nom=document.getElementById('e-nom').value.trim();
-  const email=document.getElementById('e-email').value.trim();
+  const nom=val('e-nom');
+  const email=val('e-email');
   const consent=document.getElementById('rgpd-consent');
   if(!num||!nom||!email){toast('Numéro, nom et email sont obligatoires','err');return;}
   if(consent && !consent.checked){toast("Veuillez cocher la case d'information RGPD","err");return;}
@@ -814,7 +829,7 @@ async function doEmprunt(){
   let item=DB.items.find(i=>i.id.toUpperCase()===num);
   if(!item){item={id:num,type:document.getElementById('e-type').value,desc:'',statut:'disponible'};DB.items.push(item);}
   if(item.statut==='sorti'){toast('Cet objet est déjà emprunté !','err');return;}
-  const emp={id:uid(),itemId:item.id,type:item.type,nom,prenom:document.getElementById('e-prenom').value.trim(),societe:document.getElementById('e-societe').value.trim(),tel:document.getElementById('e-tel').value.trim(),email,comment:document.getElementById('e-comment').value.trim(),date:new Date().toISOString(),signature:sigData};
+  const emp={id:uid(),itemId:item.id,type:item.type,nom,prenom:val('e-prenom'),societe:val('e-societe'),tel:val('e-tel'),email,comment:val('e-comment'),date:new Date().toISOString(),signature:sigData};
   try {
     // Supabase : créer emprunt + mettre à jour statut + historique
     await sbFetch('emprunts','POST',{id:emp.id,item_id:emp.itemId,nom:emp.nom,prenom:emp.prenom,societe:emp.societe,telephone:emp.tel,email:emp.email,commentaire:emp.comment,signature:sigData},'');
@@ -932,11 +947,11 @@ function renderInv(){
       '<td><span class="badge '+(item.statut==='disponible'?'b-dispo':'b-sorti')+'">'+(item.statut==='disponible'?'✅ Disponible':'🔴 Sorti')+'</span></td>'+
       '<td>'+(emp?emp.nom+' '+emp.prenom:'-')+'</td>'+
       '<td>'+(empDateValid?jdiff(empDate)+'j':'-')+'</td>'+
-      '<td class="abtn"><button class="btn bg bsm" onclick="showQRModal(\''+item.id+'\',\''+item.type+'\',\''+(item.desc||'').replace(/'/g,"\\'")+'\')">🔲</button>'+(emp?'<button class="btn bs bsm" onclick="retourModal(\''+item.id+'\',\''+emp.nom+'\',\''+emp.prenom+'\','+jdiff(emp.date)+',\''+fd(emp.date)+'\')">📥 Retour</button>':'')+(item.statut==='disponible'?'<button class="btn bd bsm" onclick="delItem(\''+item.id+'\')">🗑️</button>':'')+'</td></tr>';
+      '<td class="abtn"><button class="btn bg bsm" onclick="showQRModal(\''+item.id+'\',\''+item.type+'\',\''+(item.desc||'').replace(/'/g,"\\'")+'\')">🔲</button>'+(emp?'<button class="btn bs bsm" data-id="'+clean(item.id)+'" onclick="retourModalItem(this.dataset.id)">📥 Retour</button>':'')+(item.statut==='disponible'?'<button class="btn bd bsm" onclick="delItem(\''+item.id+'\')">🗑️</button>':'')+'</td></tr>';
   }).join(''):'<tr class="empty-row"><td colspan="7">Aucun élément</td></tr>';
 }
 async function doAddItem(){
-  const id=(document.getElementById('ni-num').value||'').trim().toUpperCase(),type=document.getElementById('ni-type').value,desc=document.getElementById('ni-desc').value.trim();
+  const id=val('ni-num').toUpperCase(),type=document.getElementById('ni-type').value,desc=val('ni-desc');
   if(!id){toast('Numéro obligatoire','err');return;}
   if(DB.items.find(i=>i.id===id)){toast('Ce numéro existe déjà','err');return;}
   const duree = document.getElementById('ni-duree').value;
@@ -971,8 +986,24 @@ async function editDuree(itemId) {
     toast('✅ Durée mise à jour pour '+itemId,'ok');
   } catch(e) { toast('Erreur : '+e.message,'err'); }
 }
+function retourModalItem(itemId){
+  const e=DB.emprunts.find(x=>(x.itemId||x.item_id)===itemId);
+  if(!e){toast('Emprunt introuvable','err');return;}
+  retourModal(itemId,e.nom,e.prenom,jdiff(e.date),fd(e.date));
+}
 function retourModal(itemId,nom,prenom,jours,dateFr){
-  document.getElementById('m-retour-c').innerHTML='<div class="al al-info"><strong>'+itemId+'</strong> — emprunté par '+nom+' '+prenom+'<br>Depuis '+jours+' jours ('+dateFr+')</div><div class="btn-row"><button class="btn bs" onclick="doRetourDirect(\''+itemId+'\')">✅ Confirmer</button><button class="btn bg" onclick="cm(\'m-retour\')">Annuler</button></div>';
+  const c=document.getElementById('m-retour-c'); c.textContent='';
+  const info=document.createElement('div'); info.className='al al-info';
+  const b=document.createElement('strong'); b.textContent=itemId; info.appendChild(b);
+  info.appendChild(document.createTextNode(' — emprunté par '+nom+' '+prenom));
+  info.appendChild(document.createElement('br'));
+  info.appendChild(document.createTextNode('Depuis '+jours+' jours ('+dateFr+')'));
+  const row=document.createElement('div'); row.className='btn-row';
+  const ok=document.createElement('button'); ok.className='btn bs'; ok.textContent='✅ Confirmer';
+  ok.addEventListener('click',()=>doRetourDirect(itemId));
+  const no=document.createElement('button'); no.className='btn bg'; no.textContent='Annuler';
+  no.addEventListener('click',()=>cm('m-retour'));
+  row.append(ok,no); c.append(info,row);
   document.getElementById('m-retour').classList.add('open');
 }
 async function doRetourDirect(itemId){const emp=DB.emprunts.find(e=>(e.itemId||e.item_id)===itemId);if(emp){await doRetour(emp.id);renderInv();cm('m-retour');}}
@@ -1494,9 +1525,95 @@ function dl(name,url){const a=document.createElement('a');a.href=url;a.download=
 function cm(id){document.getElementById(id).classList.remove('open');}
 function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className='show t'+type;clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3500);}
 
+// ═══ CONNEXION DES AGENTS ═══
+function afficherConnexion(msg){
+  let o=document.getElementById('login-ov');
+  if(!o){
+    o=document.createElement('div'); o.id='login-ov';
+    o.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bleu);display:flex;align-items:center;justify-content:center;padding:20px';
+    o.innerHTML='<form id="login-f" style="background:#fff;border-radius:12px;padding:26px;max-width:360px;width:100%;box-shadow:var(--shadow)">'+
+      '<h2 style="margin:0 0 4px;color:var(--bleu)">🔑 GAP</h2><p style="margin:0 0 16px;color:var(--light);font-size:.85rem">Accès réservé aux agents autorisés</p>'+
+      '<label style="font-size:.8rem;font-weight:600">Email<input id="login-email" type="email" autocomplete="username" required style="width:100%;padding:10px;margin:4px 0 12px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box"></label>'+
+      '<label style="font-size:.8rem;font-weight:600">Mot de passe<input id="login-pwd" type="password" autocomplete="current-password" required minlength="8" style="width:100%;padding:10px;margin:4px 0 12px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box"></label>'+
+      '<div id="login-msg" role="alert" style="font-size:.8rem;margin-bottom:12px;color:#922B21"></div>'+
+      '<button type="submit" class="btn bp" style="width:100%;margin-bottom:8px;justify-content:center">Se connecter</button>'+
+      '<button type="button" id="login-signup" class="btn bg" style="width:100%;margin-bottom:8px;justify-content:center">Créer mon compte</button>'+
+      '<button type="button" id="login-reset" class="btn bg bsm" style="width:100%;justify-content:center">Mot de passe oublié</button></form>';
+    document.body.appendChild(o);
+    const em=()=>document.getElementById('login-email').value.trim(), pw=()=>document.getElementById('login-pwd').value;
+    const m=t=>{document.getElementById('login-msg').textContent=t;};
+    document.getElementById('login-f').addEventListener('submit',async ev=>{
+      ev.preventDefault(); m('Connexion…');
+      const {error}=await sbClient.auth.signInWithPassword({email:em(),password:pw()});
+      if(error) m(error.message==='Invalid login credentials'?'Email ou mot de passe incorrect':(error.message.includes('confirm')?'Confirmez d’abord votre adresse via le mail reçu':error.message));
+    });
+    document.getElementById('login-signup').addEventListener('click',async()=>{
+      if(!em()||pw().length<8){m('Saisissez votre email et un mot de passe de 8 caractères minimum');return;}
+      const {data,error}=await sbClient.auth.signUp({email:em(),password:pw(),options:{emailRedirectTo:location.origin+location.pathname}});
+      if(error){m(error.message);return;}
+      m(data.session?'Compte créé.':'Compte créé : cliquez sur le lien reçu par mail, puis connectez-vous ici.');
+    });
+    document.getElementById('login-reset').addEventListener('click',async()=>{
+      if(!em()){m('Saisissez votre email');return;}
+      const {error}=await sbClient.auth.resetPasswordForEmail(em(),{redirectTo:location.origin+location.pathname});
+      m(error?error.message:'Un lien de réinitialisation vous a été envoyé.');
+    });
+  }
+  if(msg) document.getElementById('login-msg').textContent=msg;
+  o.style.display='flex';
+}
+function masquerConnexion(){const o=document.getElementById('login-ov');if(o)o.style.display='none';}
+
+async function verifierAgent(){
+  const token=await jetonAgent();
+  const r=await fetch(SB_URL+'/rest/v1/rpc/est_agent',{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}'});
+  if(!r.ok) throw new Error('Vérification des droits impossible (HTTP '+r.status+')');
+  return (await r.json())===true;
+}
+
+async function deconnexion(){
+  await sbClient.auth.signOut();
+  try{localStorage.removeItem('gap_v2');}catch(e){}
+  location.reload();
+}
+
+async function surSession(session){
+  if(!session){afficherConnexion();return;}
+  try{
+    if(!(await verifierAgent())){
+      await sbClient.auth.signOut();
+      afficherConnexion('Ce compte n’est pas autorisé. Demandez à un administrateur de l’ajouter.');
+      return;
+    }
+  }catch(e){afficherConnexion(e.message);return;}
+  masquerConnexion();
+  const h=document.querySelector('.hsync');
+  if(h && !document.getElementById('btn-logout')){
+    const b=document.createElement('button'); b.id='btn-logout'; b.type='button';
+    b.textContent='Déconnexion'; b.title=session.user.email;
+    b.style.cssText='margin-left:8px;background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:6px;padding:3px 8px;font-size:.7rem;cursor:pointer';
+    b.addEventListener('click',deconnexion); h.appendChild(b);
+  }
+  demarrerApp();
+}
+
+function initAuth(){
+  sbClient.auth.onAuthStateChange(async (event, session)=>{
+    if(event==='PASSWORD_RECOVERY'){
+      const np=prompt('Nouveau mot de passe (8 caractères minimum) :');
+      if(np && np.length>=8){const {error}=await sbClient.auth.updateUser({password:np});alert(error?error.message:'Mot de passe modifié');}
+    }
+    if(event==='SIGNED_IN' || event==='INITIAL_SESSION') setTimeout(()=>surSession(session),0);
+    if(event==='SIGNED_OUT') afficherConnexion();
+  });
+}
+
 // ═══ INIT ═══
 try { emailjs.init(EJS_KEY); } catch(e) { console.warn('EmailJS init failed:', e.message); }
-load().then(()=>{
+let appDemarree=false;
+function demarrerApp(){
+  if(appDemarree) return; appDemarree=true;
+  load().then(()=>{
   loadDash();
   // Purge automatique si configurée
   const mois = DB.params.purge || 12;
@@ -1509,17 +1626,20 @@ load().then(()=>{
         .catch(e=>console.warn('Purge auto échouée:',e.message));
     }
   }
-});
+  });
+}
+initAuth();
 // Sync automatique toutes les 30s
 setInterval(async()=>{
+  if(!appDemarree) return;
   try{
     const [items,emprunts]=await Promise.all([
       sbFetch('items','GET',null,'?order=id'),
       sbFetch('emprunts','GET',null,'?order=date_emprunt')
     ]);
     // Ne mettre à jour que si on a reçu des données valides
-    if(items && Array.isArray(items)) DB.items=items;
-    if(emprunts && Array.isArray(emprunts)) DB.emprunts=emprunts;
+    if(items && Array.isArray(items)) DB.items=mapItems(items);
+    if(emprunts && Array.isArray(emprunts)) DB.emprunts=mapEmprunts(emprunts);
     if(document.getElementById('page-dashboard').classList.contains('active'))loadDash();
     if(document.getElementById('page-inventaire').classList.contains('active'))renderInv();
     document.getElementById('sync-txt').textContent=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});

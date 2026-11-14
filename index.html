@@ -468,6 +468,15 @@ video{border-radius:8px}
 <!-- PARAMÈTRES -->
 <div class="page" id="page-params">
   <h2 style="font-size:1.2rem;color:var(--bleu);font-weight:800;margin-bottom:14px">⚙️ Paramètres</h2>
+  <div class="card" id="card-agents" style="display:none"><div class="card-title">👥 Agents autorisés</div>
+    <div class="al al-info" style="font-size:.8rem">ℹ️ Section visible uniquement par les administrateurs. Ajoutez l’adresse d’une personne, puis demandez-lui de créer son compte depuis l’écran de connexion et de confirmer son adresse.</div>
+    <form id="agent-form" class="srow" style="flex-wrap:wrap">
+      <input type="email" class="ti" id="agent-email" placeholder="prenom.nom@rte-france.com" required style="flex:1;min-width:200px">
+      <select id="agent-role" class="ti" style="width:auto"><option value="agent">Agent</option><option value="admin">Administrateur</option></select>
+      <button type="submit" class="btn bp bsm">➕ Ajouter</button>
+    </form>
+    <div class="tw"><table><thead><tr><th>Email</th><th>Rôle</th><th>Compte</th><th>Dernière connexion</th><th></th></tr></thead><tbody id="tb-agents"></tbody></table></div>
+  </div>
   <div class="card"><div class="card-title">📁 Archivage des bons</div>
     <div class="al al-info" style="font-size:.8rem">ℹ️ Les bons d'emprunt et de restitution sont archivés automatiquement dans Supabase (table <strong>bons_archives</strong>).<br>Vous pouvez aussi les consulter et les télécharger depuis l'onglet Historique.</div>
     <div class="srow">
@@ -694,7 +703,7 @@ function demo(){
 }
 
 // ═══ NAV ═══
-const loaders={dashboard:loadDash,inventaire:renderInv,historique:renderHist,alertes:renderAlertes,qrcodes:renderQR,params:applyParams,emprunter:()=>setTimeout(()=>initSig('sig-emp'),200),retour:()=>{clearSig('sig-ret');const rsz=document.getElementById('r-sig-zone');if(rsz)rsz.style.display='none';}};
+const loaders={dashboard:loadDash,inventaire:renderInv,historique:renderHist,alertes:renderAlertes,qrcodes:renderQR,params:()=>{applyParams();chargerAgents();},emprunter:()=>setTimeout(()=>initSig('sig-emp'),200),retour:()=>{clearSig('sig-ret');const rsz=document.getElementById('r-sig-zone');if(rsz)rsz.style.display='none';}};
 
 function goMobile(e, id) {
   go(e || {target: document.querySelector('.bnav-btn')}, id);
@@ -1525,6 +1534,65 @@ function dl(name,url){const a=document.createElement('a');a.href=url;a.download=
 function cm(id){document.getElementById(id).classList.remove('open');}
 function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className='show t'+type;clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3500);}
 
+// ═══ GESTION DES AGENTS (admins) ═══
+let ESTADMIN=false, EMAIL_SESSION='';
+async function rpc(nom){
+  const token=await jetonAgent();
+  const r=await fetch(SB_URL+'/rest/v1/rpc/'+nom,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:'{}'});
+  const t=await r.text(); let d=null; try{d=t?JSON.parse(t):null;}catch(e){}
+  if(!r.ok) throw new Error((d&&d.message)||('HTTP '+r.status));
+  return d;
+}
+function cellule(tr,contenu){const td=document.createElement('td');if(contenu instanceof Node)td.appendChild(contenu);else td.textContent=contenu;tr.appendChild(td);return td;}
+async function chargerAgents(){
+  const card=document.getElementById('card-agents');
+  if(!ESTADMIN){card.style.display='none';return;}
+  card.style.display='';
+  const tb=document.getElementById('tb-agents');
+  try{
+    const liste=await rpc('liste_agents')||[];
+    tb.textContent='';
+    if(!liste.length){const tr=document.createElement('tr');cellule(tr,'Aucun agent').colSpan=5;tb.appendChild(tr);return;}
+    liste.forEach(a=>{
+      const tr=document.createElement('tr'); const moi=a.email===EMAIL_SESSION;
+      cellule(tr,a.email+(moi?' (vous)':''));
+      const sel=document.createElement('select'); sel.className='ti'; sel.style.width='auto'; sel.style.minWidth='150px';
+      [['agent','Agent'],['admin','Administrateur']].forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;if(a.role===v)o.selected=true;sel.appendChild(o);});
+      sel.disabled=moi; if(moi) sel.title='Vous ne pouvez pas modifier votre propre rôle';
+      sel.addEventListener('change',()=>changerRole(a.email,sel.value));
+      cellule(tr,sel);
+      const st=document.createElement('span'); st.className='badge '+(a.compte_confirme?'b-dispo':'b-sorti');
+      st.textContent=a.compte_confirme?'✅ Actif':'⏳ Compte à créer'; cellule(tr,st);
+      cellule(tr,a.derniere_connexion?fdt(a.derniere_connexion):'-');
+      const td=cellule(tr,'');
+      if(!moi){const b=document.createElement('button');b.className='btn bd bsm';b.textContent='🗑️ Retirer';b.addEventListener('click',()=>retirerAgent(a.email));td.appendChild(b);}
+      tb.appendChild(tr);
+    });
+  }catch(e){tb.textContent='';const tr=document.createElement('tr');cellule(tr,'Erreur : '+e.message).colSpan=5;tb.appendChild(tr);}
+}
+async function ajouterAgent(ev){
+  ev.preventDefault();
+  const email=document.getElementById('agent-email').value.trim().toLowerCase(), role=document.getElementById('agent-role').value;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Adresse email invalide','err');return;}
+  try{
+    await sbFetch('agents_autorises','POST',{email,role},'');
+    document.getElementById('agent-email').value='';
+    toast('✅ '+email+' ajouté(e)','ok'); chargerAgents();
+  }catch(e){toast(e.message.includes('duplicate')?'Cette adresse est déjà autorisée':'Erreur : '+e.message,'err');}
+}
+async function changerRole(email,role){
+  try{await sbFetch('agents_autorises','PATCH',{role},'?email=eq.'+encodeURIComponent(email));toast('Rôle mis à jour','ok');}
+  catch(e){toast('Erreur : '+e.message,'err');}
+  chargerAgents();
+}
+async function retirerAgent(email){
+  if(!confirm('Retirer l’accès de '+email+' ?'))return;
+  try{await sbFetch('agents_autorises','DELETE',null,'?email=eq.'+encodeURIComponent(email));toast('Accès retiré','warn');}
+  catch(e){toast('Erreur : '+e.message,'err');}
+  chargerAgents();
+}
+document.getElementById('agent-form').addEventListener('submit',ajouterAgent);
+
 // ═══ CONNEXION DES AGENTS ═══
 function afficherConnexion(msg){
   let o=document.getElementById('login-ov');
@@ -1585,6 +1653,8 @@ async function surSession(session){
       afficherConnexion('Ce compte n’est pas autorisé. Demandez à un administrateur de l’ajouter.');
       return;
     }
+    EMAIL_SESSION=(session.user.email||'').toLowerCase();
+    ESTADMIN=(await rpc('est_admin'))===true;
   }catch(e){afficherConnexion(e.message);return;}
   masquerConnexion();
   const h=document.querySelector('.hsync');

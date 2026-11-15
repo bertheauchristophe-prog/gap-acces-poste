@@ -100,12 +100,6 @@ video{border-radius:8px}
 .ac-st{font-size:.72rem;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap}
 .ac-st-dispo{background:#D5F5E3;color:#1E8449}.ac-st-sorti{background:#FDEBD0;color:#CA6F1E}
 .ac-empty{padding:10px 12px;color:var(--light);font-size:.82rem;font-style:italic}
-/* OCR / IA */
-.ocr-zone{border:2px dashed var(--border);border-radius:8px;padding:18px;text-align:center;cursor:pointer;background:var(--gris);transition:all .15s;margin-bottom:12px}
-.ocr-zone:hover{background:#EBF5FB;border-color:var(--bleu-clair)}
-.ocr-zone.loading{border-color:var(--bleu-clair);background:#EBF5FB;cursor:default}
-.ocr-zone.success{border-color:var(--vert);background:#D5F5E3;cursor:pointer}
-.ocr-zone.error{border-color:var(--accent2);background:#FADBD8;cursor:pointer}
 /* AGENT IA */
 
 
@@ -326,13 +320,6 @@ video{border-radius:8px}
 
   <div class="card">
     <div class="card-title">👤 Coordonnées emprunteur</div>
-    <!-- OCR IA -->
-    <div class="ocr-zone" id="ocr-z" onclick="document.getElementById('ocr-f').click()">
-      <div style="font-size:1.6rem;margin-bottom:5px">📸</div>
-      <strong>Photo carte de visite</strong>
-      <div class="muted">Cliquer pour prendre/sélectionner une photo et pré-remplir les champs</div>
-      <input type="file" id="ocr-f" accept="image/*" capture="environment" style="display:none" onchange="doOCR()">
-    </div>
     <div class="fg">
       <div class="f"><label>Nom *</label><input id="e-nom" placeholder="DUPONT"></div>
       <div class="f"><label>Prénom *</label><input id="e-prenom" placeholder="Jean"></div>
@@ -511,7 +498,7 @@ video{border-radius:8px}
     <div class="srow"><div><div class="slabel" style="color:var(--accent2)">Réinitialiser</div><div class="sdesc">Efface toutes les données locales</div></div><button class="btn bd bsm" onclick="resetAll()">🗑️ Réinitialiser</button></div>
   </div>
   <div class="btn-row"><button class="btn bs" onclick="saveParams()">💾 Sauvegarder les paramètres</button></div>
-  <div class="card" style="margin-top:14px"><div class="card-title">ℹ️ À propos</div><p class="muted">GAP v3.0 — Agent IA Claude + Base de données Supabase (multi-appareils temps réel). ✅ Données partagées entre tous les appareils.</p></div>
+  <div class="card" style="margin-top:14px"><div class="card-title">ℹ️ À propos</div><p class="muted">GAP v3.0 — Base de données Supabase (multi-appareils temps réel). ✅ Données partagées entre tous les appareils.</p></div>
 </div>
 
 <script>
@@ -770,16 +757,6 @@ function loadDash(){
   document.getElementById('sync-txt').textContent=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 }
 
-// ═══ AGENT IA — APPEL CLAUDE ═══
-function doOCR(){
-  const file = document.getElementById('ocr-f').files[0];
-  if(!file) return;
-  const z = document.getElementById('ocr-z');
-  z.className = 'ocr-zone success';
-  z.innerHTML = '<div style="font-size:1.4rem">📷</div><strong>Photo chargée</strong><div class="muted">Remplissez les coordonnées manuellement ci-dessous</div>';
-  z.onclick = ()=>document.getElementById('ocr-f').click();
-  toast('📸 Photo chargée','ok');
-}
 
 
 // ═══ AUTOCOMPLETE ═══
@@ -857,12 +834,6 @@ function resetE(){
   document.getElementById('e-status').innerHTML='';
   document.getElementById('e-ac').style.display='none';
   const cb=document.getElementById('rgpd-consent');if(cb)cb.checked=false;
-  
-  
-  const z=document.getElementById('ocr-z');
-  z.className='ocr-zone';
-  z.innerHTML='<div style="font-size:1.6rem;margin-bottom:5px">📸</div><strong>Photo carte de visite — OCR par IA Claude</strong><div class="muted">Photographiez la carte · l\'IA extrait automatiquement toutes les coordonnées</div><input type="file" id="ocr-f" accept="image/*" capture="environment" style="display:none" onchange="doOCR()">';
-  z.onclick=()=>document.getElementById('ocr-f').click();
 }
 
 // ═══ RETOUR ═══

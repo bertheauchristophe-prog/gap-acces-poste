@@ -19,6 +19,6 @@ jobs:
       - name: Envoyer les relances et purger les anciennes données
         run: node scripts/relances.js
         env:
-          # Clé "service_role" Supabase, à enregistrer dans
-          # Settings > Secrets and variables > Actions > SB_SERVICE_KEY
-          SB_SERVICE_KEY: ${{ secrets.SB_SERVICE_KEY }}
+          # Clé "service_role" (ou "secret") Supabase, enregistrée dans
+          # Settings > Secrets and variables > Actions > SB_KEY
+          SB_SERVICE_KEY: ${{ secrets.SB_SERVICE_KEY || secrets.SB_KEY }}

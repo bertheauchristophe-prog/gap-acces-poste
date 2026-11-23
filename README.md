@@ -13,4 +13,4 @@ Application de suivi des prêts de clés et de badges.
 ## Relances automatiques
 
 Le workflow `.github/workflows/relances.yml` s'exécute chaque jour. Il nécessite le secret
-GitHub `SB_SERVICE_KEY` (clé `service_role` du projet Supabase, à ne jamais placer dans `index.html`).
+GitHub `SB_KEY` (clé `service_role` du projet Supabase, à ne jamais placer dans `index.html`).

@@ -37,8 +37,23 @@ async function sendMail(params) {
   if (!res.ok) throw new Error(`EmailJS : HTTP ${res.status} ${text}`);
 }
 
+// Vérifie, sans l'afficher, que la clé fournie est bien une clé serveur
+function verifierTypeCle(cle) {
+  if (cle.startsWith('sb_secret_')) return console.log('Clé Supabase : secrète (OK)');
+  if (cle.startsWith('sb_publishable_')) throw new Error('Le secret SB_KEY contient la clé publique (publishable). Remplacez-la par la clé service_role ou secret.');
+  try {
+    const role = JSON.parse(Buffer.from(cle.split('.')[1], 'base64url').toString()).role;
+    if (role === 'service_role') return console.log('Clé Supabase : service_role (OK)');
+    throw new Error(`Le secret SB_KEY contient une clé de rôle "${role}". Remplacez-la par la clé service_role.`);
+  } catch (e) {
+    if (e.message.startsWith('Le secret')) throw e;
+    throw new Error('Le secret SB_KEY ne ressemble pas à une clé Supabase valide.');
+  }
+}
+
 async function main() {
-  if (!SB_KEY) throw new Error('Secret SB_SERVICE_KEY manquant dans GitHub (clé service_role Supabase).');
+  if (!SB_KEY) throw new Error('Secret SB_KEY manquant dans GitHub (clé service_role Supabase).');
+  verifierTypeCle(SB_KEY);
 
   const items    = await sb('items?select=id,type,duree_max');
   const emprunts = await sb('emprunts?select=*');

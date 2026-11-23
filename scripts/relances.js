@@ -6,6 +6,7 @@ const SB_KEY = process.env.SB_SERVICE_KEY;
 const EJS_SERVICE  = 'service_h6a8p3l';
 const EJS_TEMPLATE = 'template_an5b4bb';
 const EJS_KEY      = 'uRh8B6H60bDSoWVCT'; // clé publique EmailJS
+const EJS_PRIVATE  = process.env.EJS_PRIVATE_KEY; // clé privée EmailJS (mode strict)
 const JOUR = 86400000;
 
 async function sb(path, method = 'GET', body) {
@@ -30,7 +31,8 @@ async function sendMail(params) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       service_id: EJS_SERVICE, template_id: EJS_TEMPLATE,
-      user_id: EJS_KEY, template_params: params
+      user_id: EJS_KEY, template_params: params,
+      ...(EJS_PRIVATE ? { accessToken: EJS_PRIVATE } : {})
     })
   });
   const text = await res.text();
@@ -54,6 +56,7 @@ function verifierTypeCle(cle) {
 async function main() {
   if (!SB_KEY) throw new Error('Secret SB_KEY manquant dans GitHub (clé service_role Supabase).');
   verifierTypeCle(SB_KEY);
+  if (!EJS_PRIVATE) console.warn('Secret EJS_PRIVATE_KEY absent : nécessaire si le mode strict EmailJS est activé.');
 
   const items    = await sb('items?select=id,type,duree_max');
   const emprunts = await sb('emprunts?select=*');
